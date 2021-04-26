@@ -767,16 +767,16 @@ const getPublishedAppsList = async(siteId) => {
     const appObjects = await query.find();
 
     const lst = appObjects.map((appObject) => {
-      // const developer = getDeveloperFromAppObject(appObject);
-      // const developerContent = getDeveloperContentFromAppObject(appObject);
-      // const developerData = getDeveloperDataFromAppObject(appObject);
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
       return {
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
-        // developer,
-        // developerContent,
-        // developerData
+        developer,
+        developerContent,
+        developerData
       }
     });
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -785,4 +785,51 @@ const getPublishedAppsList = async(siteId) => {
     console.error('inside getPublicAppsList', error);
     throw error;
   }
+}
+
+
+function getDeveloperFromAppObject(appObject) {
+  let developer = null;
+  const developerObject = appObject.get('Developer');
+
+  if (developerObject && developerObject.length > 0) {
+    developer = {
+      name: developerObject[0].get('Name'),
+      company: developerObject[0].get('Company') || '',
+      website: developerObject[0].get('Website') || '',
+      email: developerObject[0].get('Email') || ''
+    }
+  }
+  return developer;
+}
+
+function getDeveloperContentFromAppObject(appObject) {
+  let developerContent = null;
+  const developerContentObject = appObject.get('Content');
+  if (developerContentObject && developerContentObject.length > 0) {
+    developerContent = {
+      shortName: developerContentObject[0].get('Short_Name'),
+      keyImage: developerContentObject[0].get('Key_Image') ? developerContentObject[0].get('Key_Image').get('file')._url : null,
+      description: developerContentObject[0].get('Description') || '',
+      termsURL: developerContentObject[0].get('Terms_URL') || '',
+      privacyURL: developerContentObject[0].get('Privacy_URL') || '',
+    }
+  }
+  return developerContent;
+}
+
+function getDeveloperDataFromAppObject(appObject) {
+  let developerData = null;
+  const developerDataObject = appObject.get('Data');
+
+  if (developerDataObject && developerDataObject.length > 0) {
+    developerData = {
+      id: developerDataObject[0].id,
+      dataName: developerDataObject[0].get('Data_Name'),
+      installsCount: developerDataObject[0].get('Installs_Count'),
+      status: developerDataObject[0].get('Status'),
+      rating: developerDataObject[0].get('Rating')
+    }
+  }
+  return developerData;
 }
