@@ -6,6 +6,8 @@ const request = require('request');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const proxy = require('express-http-proxy');
+require('dotenv').config();
 
 const packageJSON = require('./package.json');
 
@@ -50,6 +52,9 @@ Object.assign(parseConfig, {
     classNames: ['Site', 'Model', 'ModelField', 'Collaboration', 'MediaItem', 'ct____.*']
   }
 });
+
+console.log("set parse config", parseConfig, MASTER_KEY, process.env.MASTER_KEY)
+
 
 const cps = parseConfig.customPages;
 for (let p in cps) {
