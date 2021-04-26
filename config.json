@@ -1,0 +1,65 @@
+{
+  "parseConfig": {
+    "appName": "Chisel",
+    "appId": "SampleAppId",
+    "masterKey": "SampleMasterKey",
+
+    "port": 1337,
+    "URLserver": "http://localhost:1337/parse",
+    "GraphQLURLserver": "http://localhost:1337/graphql",
+    "URLdb": "mongodb://localhost:27017/parse",
+    "URLsite": "http://localhost:9000",
+
+    "maxUploadSize": "10mb",
+
+    "verifyUserEmails": true,
+    "preventLoginWithUnverifiedEmail": true,
+
+    "emailAdapter": {
+      "module": "parse-server-mailgun",
+      "options": {
+        "fromAddress": "sample@address.com",
+        "domain": "sampledomain.com",
+        "apiKey": "samplekey",
+        "templates": {
+          "passwordResetEmail": {
+            "subject": "Reset your password",
+            "pathPlainText": "mailTemplates/passwordReset.txt",
+            "pathHtml": "mailTemplates/passwordReset.html"
+          },
+          "verificationEmail": {
+            "subject": "Confirm your account",
+            "pathPlainText": "mailTemplates/emailVerify.txt",
+            "pathHtml": "mailTemplates/emailVerify.html"
+          },
+          "inviteEmail": {
+            "subject": "Inviting you to Chisel",
+            "pathPlainText": "mailTemplates/invite.txt",
+            "pathHtml": "mailTemplates/invite.html"
+          }
+        }
+      }
+    },
+
+    "customPages": {
+      "verifyEmailSuccess":       "/email-verify",
+      "choosePassword":           "/password-set",
+      "passwordResetSuccess":     "/password-set-success",
+      "invalidLink":              "/invalid-link",
+      "invalidVerificationLink":  "/invalid-link"
+    }
+  },
+
+  "extraConfig": {
+    "dashboardActivated": true,
+    "userEmail": "test",
+    "userPassword": "123456",
+
+    "siteTemplates": true,
+
+    "StripeConfig": {
+      "keyPublic": "pk_test_sample",
+      "keyPrivate": "sk_test_sample"
+    }
+  }
+}

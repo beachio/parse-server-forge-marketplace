@@ -1,0 +1,9 @@
+Hi {{username}},
+
+Thanks for signing up for Chisel!
+Please confirm your account by clicking on the link below.
+
+{{link}}
+
+The Chisel Team
+https://chiselcms.com

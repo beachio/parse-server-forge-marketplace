@@ -1,0 +1,33 @@
+{
+  "name": "chisel-parse-server",
+  "version": "0.7.2",
+  "description": "Parse Server setup for Chisel CMS",
+  "author": "Beach.io <beach.io>",
+  "license": "MIT",
+  "homepage": "http://chiselcms.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beachio/chisel-parse-server-starter"
+  },
+  "bugs": {
+    "url": "https://github.com/beachio/chisel-parse-server-starter/issues"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "updateConfAndStart": "node update_stripe_in_config.js && node index.js"
+  },
+  "dependencies": {
+    "@nessi/parse-server": "^4.5.2",
+    "express": "^4.17.1",
+    "parse": "^2.19.0",
+    "parse-dashboard": "^2.1.0",
+    "parse-server-mailgun": "^2.4.15",
+    "request": "^2.88.2",
+    "stripe": "^7.63.1",
+    "yarn": "^1.22.5"
+  },
+  "engines": {
+    "node": ">=10.0.0",
+    "yarn": "^1.22.5"
+  }
+}
