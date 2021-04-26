@@ -751,6 +751,7 @@ const getPublishedAppsList = async(siteId) => {
     }
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
     
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
@@ -759,6 +760,10 @@ const getPublishedAppsList = async(siteId) => {
     query.include(['Content.Key_Image']);
     query.include(['Content.Screenshots']);
     query.include('Developer');
+    
+    const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    readyForSaleQuery.equalTo('Status', 'Ready for Sale');
+    query.matchesQuery('Data', readyForSaleQuery);
     const appObjects = await query.find();
 
     const lst = appObjects.map((appObject) => {
