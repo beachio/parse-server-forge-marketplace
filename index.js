@@ -29,6 +29,7 @@ const DASH_USER_PASSWORD  = process.env.USER_PASS           || config.extraConfi
 
 const SITE_TEMPLATES      = process.env.SITE_TEMPLATES      || config.extraConfig.siteTemplates;
 
+const FORGE_SITE_TOKEN = process.env.FORGE_SITE_TOKEN;
 
 let emailOptions = parseConfig.emailAdapter.options;
 emailOptions.fromAddress  = process.env.FROM_ADDRESS    || emailOptions.fromAddress;
@@ -94,6 +95,16 @@ if (DASHBOARD_ACTIVATED) {
   const dashboard = new ParseDashboard(dashboardConfig, {allowInsecureHTTP: true});
   app.use('/dashboard', dashboard);
 }
+
+
+app.use('/siteInfo', proxy('https://getforge.com', {
+  proxyReqPathResolver: function (req) {
+
+    const url = '/api/v2/settings/site_info?site_token=';
+    
+    return url + FORGE_SITE_TOKEN;
+  }
+}));
 
 
 const postStart = async () => {
