@@ -719,3 +719,65 @@ Parse.Cloud.define("checkPassword", request => {
 
   return Parse.User.logIn(username, password);
 });
+
+
+// Get Site nameId to generate Model names
+const getSiteNameId = async(siteId) => {
+  const siteQuery = new Parse.Query('Site');
+  siteQuery.equalTo('objectId', siteId);
+  const siteRecord = await siteQuery.first({useMasterKey: true});
+  if (!siteRecord || !siteRecord.get('nameId')) return null;
+  return siteRecord.get('nameId');
+}
+
+Parse.Cloud.define("publishedAppsList", async (request) => {
+  const { siteId } = request.params;
+  try {
+    const publishedApps = await getPublishedAppsList(siteId);
+    
+    return { status: 'success', publishedApps };
+  } catch (error) {
+    console.log('inside getMyTalks', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPublishedAppsList = async(siteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include(['Content.Key_Image']);
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    const appObjects = await query.find();
+
+    const lst = appObjects.map((appObject) => {
+      // const developer = getDeveloperFromAppObject(appObject);
+      // const developerContent = getDeveloperContentFromAppObject(appObject);
+      // const developerData = getDeveloperDataFromAppObject(appObject);
+      return {
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        // developer,
+        // developerContent,
+        // developerData
+      }
+    });
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}

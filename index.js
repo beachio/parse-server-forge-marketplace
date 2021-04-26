@@ -53,7 +53,7 @@ Object.assign(parseConfig, {
   }
 });
 
-console.log("set parse config", parseConfig, MASTER_KEY, process.env.MASTER_KEY)
+console.log("set parse config", parseConfig, URL_SERVER, process.env.SERVER_URL)
 
 
 const cps = parseConfig.customPages;
