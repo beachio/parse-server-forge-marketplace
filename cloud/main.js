@@ -764,7 +764,7 @@ const getPublishedAppsList = async(siteId) => {
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
     query.matchesQuery('Data', readyForSaleQuery);
-    const appObjects = await query.find();
+    const appObjects = await query.find({ useMasterKey: true });
 
     const lst = appObjects.map((appObject) => {
       const developer = getDeveloperFromAppObject(appObject);
