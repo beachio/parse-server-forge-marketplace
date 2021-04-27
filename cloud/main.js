@@ -752,12 +752,12 @@ const getPublishedAppsList = async(siteId) => {
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
     const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    
+
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
-    query.include(['Content.Key_Image']);
+    query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include('Developer');
     
@@ -807,16 +807,22 @@ function getDeveloperContentFromAppObject(appObject) {
   let developerContent = null;
   const developerContentObject = appObject.get('Content');
   if (developerContentObject && developerContentObject.length > 0) {
+    let screenshots = [];
+    if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
+      screenshots = developerContentObject[0].get('Screenshots').map(screen => screen.get('file')._url);
+    }
     developerContent = {
       shortName: developerContentObject[0].get('Short_Name'),
       keyImage: developerContentObject[0].get('Key_Image') ? developerContentObject[0].get('Key_Image').get('file')._url : null,
       description: developerContentObject[0].get('Description') || '',
       termsURL: developerContentObject[0].get('Terms_URL') || '',
       privacyURL: developerContentObject[0].get('Privacy_URL') || '',
+      screenshots
     }
   }
   return developerContent;
 }
+
 
 function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
