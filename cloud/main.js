@@ -1,5 +1,7 @@
 console.log('Cloud code connected');
-
+const request = require('request');
+const proxy = require('express-http-proxy');
+const axios = require('axios');
 const {config, SITE, ROLE_ADMIN, ROLE_EDITOR, promisifyW, getAllObjects} = require('./common');
 
 const {getPayPlan} = require('./payment');
@@ -760,25 +762,29 @@ const getPublishedAppsList = async(siteId) => {
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include('Developer');
+    query.include('Security');
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
     query.matchesQuery('Data', readyForSaleQuery);
     const appObjects = await query.find({ useMasterKey: true });
-
-    const lst = appObjects.map((appObject) => {
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = getDeveloperDataFromAppObject(appObject);
-      return {
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
         developerContent,
-        developerData
-      }
-    });
+        developerData,
+        siteInfo
+      });
+    }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
@@ -838,4 +844,21 @@ function getDeveloperDataFromAppObject(appObject) {
     }
   }
   return developerData;
+}
+
+// Get site info from app object / security
+async function getSiteInfoFromAppObject(appObject) {
+  try {
+    const securityObject = appObject.get('Security');
+    if (securityObject && securityObject.length > 0) {
+      const url = 'https://getforge.com/api/v2/settings/site_info?site_token=' + securityObject[0].get('Forge_API_Key');
+      const result = await axios.get(url);
+      console.log("app get site info", result.data);
+      return result.data ? result.data.message : null;
+    }
+    return null
+  } catch(error) {
+    console.log("get site info", error);
+    throw error;
+  }
 }

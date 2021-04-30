@@ -103,7 +103,6 @@ if (DASHBOARD_ACTIVATED) {
 
 app.use('/siteInfo', proxy('https://getforge.com', {
   proxyReqPathResolver: function (req) {
-
     const url = '/api/v2/settings/site_info?site_token=';
     
     return url + FORGE_SITE_TOKEN;
