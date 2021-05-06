@@ -927,6 +927,75 @@ const getAppsListMadeBy = async(siteId, companyName) => {
 }
 
 
+Parse.Cloud.define("categoryAppsList", async (request) => {
+  const { siteId, categorySlug } = request.params;
+  try {
+    const apps = await getCategoryAppsList(siteId, categorySlug);
+    
+    return { status: 'success', apps };
+  } catch (error) {
+    console.log('inside getMyTalks', error);
+    return { status: 'error', error };
+  }
+});
+
+const getCategoryAppsList = async(siteId, categorySlug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
+    const CATEGORY_MODEL_NAME = `ct____${siteNameId}____Category`;
+
+    const categoryQuery = new Parse.Query(CATEGORY_MODEL_NAME);
+    categoryQuery.equalTo('t__status', 'Published');
+    categoryQuery.equalTo('Slug', categorySlug);
+    const categoryObject = categoryQuery.first({ useMasterKey: true });
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    const categoriesMatchQuery = new Parse.Query(DEVELOPER_APP_CONTENT_MODEL_NAME);
+    categoriesMatchQuery.equalTo('Categories', categoryObject);
+    query.matchesQuery('Content', categoriesMatchQuery);
+
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        siteInfo
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}
+
+
 
 function getDeveloperFromAppObject(appObject) {
   let developer = null;
