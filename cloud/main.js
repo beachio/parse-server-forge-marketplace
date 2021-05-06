@@ -996,6 +996,65 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
 }
 
 
+Parse.Cloud.define("searchApps", async (request) => {
+  const { siteId, keyword } = request.params;
+  try {
+    const apps = await searchApps(siteId, keyword);
+    
+    return { status: 'success', apps };
+  } catch (error) {
+    console.log('inside getMyTalks', error);
+    return { status: 'error', error };
+  }
+});
+
+const searchApps = async(siteId, keyword) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.contains('Name', keyword)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        siteInfo
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}
+
+
 
 function getDeveloperFromAppObject(appObject) {
   let developer = null;
