@@ -794,6 +794,74 @@ const getPublishedAppsList = async(siteId) => {
 }
 
 
+Parse.Cloud.define("featuredAppsList", async (request) => {
+  const { siteId } = request.params;
+  try {
+    const featuredApps = await getFeaturedAppsList(siteId);
+    
+    return { status: 'success', featuredApps };
+  } catch (error) {
+    console.log('inside getMyTalks', error);
+    return { status: 'error', error };
+  }
+});
+
+const getFeaturedAppsList = async(siteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    readyForSaleQuery.equalTo('Status', 'Ready for Sale');
+    query.matchesQuery('Data', readyForSaleQuery);
+
+    const featuredQuery = new Parse.Query(DEVELOPER_APP_CONTENT_MODEL_NAME);
+    featuredQuery.equalTo('Featured_', true);
+    query.matchesQuery('Content', featuredQuery);
+
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        siteInfo
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}
+
+
 function getDeveloperFromAppObject(appObject) {
   let developer = null;
   const developerObject = appObject.get('Developer');
@@ -817,12 +885,23 @@ function getDeveloperContentFromAppObject(appObject) {
     if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
       screenshots = developerContentObject[0].get('Screenshots').map(screen => screen.get('file')._url);
     }
+    let categories = [];
+    if (developerContentObject[0].get('Categories') && developerContentObject[0].get('Categories').length > 0) {
+      categories = developerContentObject[0].get('Categories').map(category => ({
+        name: category.get('Name'),
+        slug: category.get('Slug')
+      }))
+    }
     developerContent = {
       shortName: developerContentObject[0].get('Short_Name'),
       keyImage: developerContentObject[0].get('Key_Image') ? developerContentObject[0].get('Key_Image').get('file')._url : null,
       description: developerContentObject[0].get('Description') || '',
       termsURL: developerContentObject[0].get('Terms_URL') || '',
       privacyURL: developerContentObject[0].get('Privacy_URL') || '',
+      featured: developerContentObject[0].get('Featured_') || false,
+      listing: developerContentObject[0].get('Listing') || [],
+      filters: developerContentObject[0].get('Filters') || [],
+      categories,
       screenshots
     }
   }
@@ -840,7 +919,10 @@ function getDeveloperDataFromAppObject(appObject) {
       dataName: developerDataObject[0].get('Data_Name'),
       installsCount: developerDataObject[0].get('Installs_Count'),
       status: developerDataObject[0].get('Status'),
-      rating: developerDataObject[0].get('Rating')
+      rating: developerDataObject[0].get('Rating'),
+      isPaid: developerDataObject[0].get('Is_Paid_') || false,
+      feeType: developerDataObject[0].get('Fee_Type') || null,
+      feeAmount: developerDataObject[0].get('Fee_Amount') || null
     }
   }
   return developerData;
@@ -853,7 +935,6 @@ async function getSiteInfoFromAppObject(appObject) {
     if (securityObject && securityObject.length > 0) {
       const url = 'https://getforge.com/api/v2/settings/site_info?site_token=' + securityObject[0].get('Forge_API_Key');
       const result = await axios.get(url);
-      console.log("app get site info", result.data);
       return result.data ? result.data.message : null;
     }
     return null
