@@ -842,6 +842,71 @@ const getFeaturedAppsList = async(siteId) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = getDeveloperDataFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}
+
+Parse.Cloud.define("appsMadeBy", async (request) => {
+  const { siteId, companyName } = request.params;
+  try {
+    const apps = await getAppsListMadeBy(siteId, companyName);
+    
+    return { status: 'success', apps };
+  } catch (error) {
+    console.log('inside getMyTalks', error);
+    return { status: 'error', error };
+  }
+});
+
+const getAppsListMadeBy = async(siteId, companyName) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    readyForSaleQuery.equalTo('Status', 'Ready for Sale');
+    query.matchesQuery('Data', readyForSaleQuery);
+
+    const madeByQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    madeByQuery.equalTo('Company', companyName);
+    query.matchesQuery('Developer', madeByQuery);
+
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -860,6 +925,7 @@ const getFeaturedAppsList = async(siteId) => {
     throw error;
   }
 }
+
 
 
 function getDeveloperFromAppObject(appObject) {
