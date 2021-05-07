@@ -854,7 +854,7 @@ const getFeaturedAppsList = async(siteId) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getPublicAppsList', error);
+    console.error('inside getFeaturedList', error);
     throw error;
   }
 }
@@ -921,7 +921,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getPublicAppsList', error);
+    console.error('inside getAppsMadeBy', error);
     throw error;
   }
 }
@@ -990,7 +990,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getPublicAppsList', error);
+    console.error('inside getCategoryAppsList', error);
     throw error;
   }
 }
@@ -1003,7 +1003,7 @@ Parse.Cloud.define("searchApps", async (request) => {
     
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside getMyTalks', error);
+    console.log('inside searchApps', error);
     return { status: 'error', error };
   }
 });
@@ -1049,10 +1049,66 @@ const searchApps = async(siteId, keyword) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getPublicAppsList', error);
+    console.error('inside searchApps', error);
     throw error;
   }
 }
+
+
+
+Parse.Cloud.define("getAppDetail", async (request) => {
+  const { siteId, appSlug } = request.params;
+  try {
+    const appDetail = await getAppDetail(siteId, appSlug);
+    
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.log('inside getAppDetail', error);
+    return { status: 'error', error };
+  }
+});
+
+const getAppDetail = async(siteId, appSlug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('Slug', appSlug)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    const appObject = await query.first();
+    if (!appObject) return null;
+    const developer = getDeveloperFromAppObject(appObject);
+    const developerContent = getDeveloperContentFromAppObject(appObject);
+    const developerData = getDeveloperDataFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    return {
+      name: appObject.get('Name'),
+      slug: appObject.get('Slug'),
+      url: appObject.get('URL'),
+      developer,
+      developerContent,
+      developerData,
+      siteInfo
+    }
+  } catch(error) {
+    console.error('inside getAppDetal', error);
+    throw error;
+  }
+}
+
 
 
 
