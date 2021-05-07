@@ -737,7 +737,7 @@ Parse.Cloud.define("publishedAppsList", async (request) => {
   try {
     const publishedApps = await getPublishedAppsList(siteId);
     
-    return { status: 'success', publishedApps };
+    return { status: 'success', apps: publishedApps };
   } catch (error) {
     console.log('inside getMyTalks', error);
     return { status: 'error', error };
@@ -799,7 +799,7 @@ Parse.Cloud.define("featuredAppsList", async (request) => {
   try {
     const featuredApps = await getFeaturedAppsList(siteId);
     
-    return { status: 'success', featuredApps };
+    return { status: 'success', apps: featuredApps };
   } catch (error) {
     console.log('inside getMyTalks', error);
     return { status: 'error', error };
