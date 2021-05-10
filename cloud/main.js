@@ -761,6 +761,7 @@ const getPublishedAppsList = async(siteId) => {
     query.include('Content');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
     query.include('Developer');
     query.include('Security');
     
@@ -1085,6 +1086,7 @@ const getAppDetail = async(siteId, appSlug) => {
     query.include('Content');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
+    query.include(['Content.Categories']);
     query.include('Developer');
     query.include('Security');
     
