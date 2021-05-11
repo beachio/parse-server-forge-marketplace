@@ -802,7 +802,7 @@ Parse.Cloud.define("featuredAppsList", async (request) => {
     
     return { status: 'success', apps: featuredApps };
   } catch (error) {
-    console.log('inside getMyTalks', error);
+    console.log('inside featuredAppsList', error);
     return { status: 'error', error };
   }
 });
@@ -867,7 +867,7 @@ Parse.Cloud.define("appsMadeBy", async (request) => {
     
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside getMyTalks', error);
+    console.log('inside appsMadeBy', error);
     return { status: 'error', error };
   }
 });
@@ -955,7 +955,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
     const categoryQuery = new Parse.Query(CATEGORY_MODEL_NAME);
     categoryQuery.equalTo('t__status', 'Published');
     categoryQuery.equalTo('Slug', categorySlug);
-    const categoryObject = categoryQuery.first({ useMasterKey: true });
+    const categoryObject = await categoryQuery.first({ useMasterKey: true });
 
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
@@ -1028,6 +1028,7 @@ const searchApps = async(siteId, keyword) => {
     query.include(['Content.Screenshots']);
     query.include('Developer');
     query.include('Security');
+    query.include('Security.Policy');
     
     const appObjects = await query.find({ useMasterKey: true });
     
@@ -1037,6 +1038,7 @@ const searchApps = async(siteId, keyword) => {
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
+      const security = getSecurityFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
@@ -1191,7 +1193,33 @@ async function getSiteInfoFromAppObject(appObject) {
     }
     return null
   } catch(error) {
-    console.log("get site info", error);
+    console.error("get site info", error);
     throw error;
+  }
+}
+
+function getSecurityFromAppObject(appObject) {
+  try {
+    let security = null;
+    const securityObject = appObject.get('Security');
+    if (securityObject && securityObject.length > 0) {
+      const policy = securityObject[0].get('Policy');
+      if (policy) {
+        security = {
+          name: policy.get('Policy_Name'),
+          evalSafePassMax: policy.get('EvalSafe_Pass_Max'),
+          evalSafePassMin: policy.get('EvalSafe_Pass_Min'),
+          evalSafeWarningMax: policy.get('EvalSafe_Warning_Max'),
+          evalSafeWarningMin: policy.get('EvalSafe_Warning_Min'),
+          evalSafeFailMax: policy.get('EvalSafe_Fail_Max'),
+          evalSafeFailMin: policy.get('EvalSafe_Fail_Min'),
+          requireSSL: policy.get('RequireSSL'),
+          requireForceSSL: policy.get('RequireForceSSL')
+          
+        };
+      }
+    }
+  } catch(error) {
+    console.error("get security", error);
   }
 }
