@@ -1092,7 +1092,7 @@ const getAppDetail = async(siteId, appSlug) => {
     query.include('Developer');
     query.include('Security');
     
-    const appObject = await query.first();
+    const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
