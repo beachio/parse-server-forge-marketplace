@@ -1046,6 +1046,7 @@ const searchApps = async(siteId, keyword) => {
         developer,
         developerContent,
         developerData,
+        security,
         siteInfo
       });
     }
@@ -1123,6 +1124,7 @@ function getDeveloperFromAppObject(appObject) {
   if (developerObject && developerObject.length > 0) {
     developer = {
       name: developerObject[0].get('Name'),
+      verified: developerObject[0].get('Verified') || false,
       company: developerObject[0].get('Company') || '',
       website: developerObject[0].get('Website') || '',
       email: developerObject[0].get('Email') || ''
