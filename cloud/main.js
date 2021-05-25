@@ -1021,7 +1021,7 @@ const searchApps = async(siteId, keyword) => {
 
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
-    query.contains('Name', keyword)
+    query.matches('Name', keyword, 'i')
     query.include('Data');
     query.include('Content');
     query.include('Content.Key_Image');
