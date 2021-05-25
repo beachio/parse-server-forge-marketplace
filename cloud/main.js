@@ -1092,12 +1092,14 @@ const getAppDetail = async(siteId, appSlug) => {
     query.include(['Content.Categories']);
     query.include('Developer');
     query.include('Security');
+    query.include('Security.Policy');
     
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
     const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
       name: appObject.get('Name'),
@@ -1106,6 +1108,7 @@ const getAppDetail = async(siteId, appSlug) => {
       developer,
       developerContent,
       developerData,
+      developerSecurity,
       siteInfo
     }
   } catch(error) {
