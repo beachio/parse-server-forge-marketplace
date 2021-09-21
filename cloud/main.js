@@ -1118,6 +1118,63 @@ const getAppDetail = async(siteId, appSlug) => {
 }
 
 
+Parse.Cloud.define("getDeveloperAppById", async (request) => {
+  const { siteId, appId } = request.params;
+  try {
+    const appDetail = await getDeveloperAppById(siteId, appId);
+    
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.log('inside getDeveloperAppById', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDeveloperAppById = async(siteId, appId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('objectId', appId)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Categories']);
+    query.include('Developer');
+    query.include('Security');
+    query.include('Security.Policy');
+    
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const developer = getDeveloperFromAppObject(appObject);
+    const developerContent = getDeveloperContentFromAppObject(appObject);
+    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerSecurity = getSecurityFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    return {
+      name: appObject.get('Name'),
+      slug: appObject.get('Slug'),
+      url: appObject.get('URL'),
+      developer,
+      developerContent,
+      developerData,
+      developerSecurity,
+      siteInfo
+    }
+  } catch(error) {
+    console.error('inside getDeveloperAppById', error);
+    throw error;
+  }
+}
+
 
 
 function getDeveloperFromAppObject(appObject) {
