@@ -1248,7 +1248,7 @@ function getDeveloperDataFromAppObject(appObject) {
 async function getSiteInfoFromAppObject(appObject) {
   try {
     const securityObject = appObject.get('Security');
-    if (securityObject && securityObject.length > 0) {
+    if (securityObject && securityObject[0] && securityObject[0].get('Forge_API_Key')) {
       const url = 'https://getforge.com/api/v2/settings/site_info?site_token=' + securityObject[0].get('Forge_API_Key');
       const result = await axios.get(url);
       return result.data ? result.data.message : null;
@@ -1281,6 +1281,7 @@ function getSecurityFromAppObject(appObject) {
         };
       }
     }
+    return security;
   } catch(error) {
     console.error("get security", error);
   }
