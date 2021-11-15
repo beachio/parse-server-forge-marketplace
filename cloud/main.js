@@ -778,14 +778,13 @@ const getPublishedAppsList = async(siteId) => {
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
-        id: appObject.get('id'),
+        id: appObject.objectId,
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
         developerContent,
         developerData,
         siteInfo,
-        appObject,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
