@@ -764,6 +764,7 @@ const getPublishedAppsList = async(siteId) => {
     query.include(['Content.Catgories']);
     query.include('Developer');
     query.include('Security');
+    query.include('Capability');
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
@@ -783,7 +784,8 @@ const getPublishedAppsList = async(siteId) => {
         developer,
         developerContent,
         developerData,
-        siteInfo
+        siteInfo,
+        capability: appObject.get('Capability')
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
