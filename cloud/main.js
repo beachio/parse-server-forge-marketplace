@@ -771,7 +771,11 @@ const getPublishedAppsList = async(siteId) => {
     const appObjects = await query.find({ useMasterKey: true });
     
     const lst = [];
-    for (const appObject of appObjects) {    
+    for (const appObject of appObjects) {  
+      console.log(appObject, 'appObject');
+      console.log(appObject.objectId, 'appObject.objectId');  
+      console.log(appObject.get('objectId'), 'appObject.get(\'objectId\')');  
+
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = getDeveloperDataFromAppObject(appObject);
