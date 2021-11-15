@@ -772,17 +772,13 @@ const getPublishedAppsList = async(siteId) => {
     
     const lst = [];
     for (const appObject of appObjects) {  
-      console.log(appObject, 'appObject');
-      console.log(appObject.objectId, 'appObject.objectId');  
-      console.log(appObject.get('objectId'), 'appObject.get(\'objectId\')');  
-
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
-        id: appObject.get('objectId'),
+        id: appObject.get('id'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
