@@ -778,7 +778,7 @@ const getPublishedAppsList = async(siteId) => {
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
-        objId: appObject.get('objectId'),
+        objId: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
