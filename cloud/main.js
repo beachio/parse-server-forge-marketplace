@@ -1234,6 +1234,7 @@ function getDeveloperContentFromAppObject(appObject) {
 function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
+  const settingDashboard = developerDataObject[0].get('Dashboard_Setting');
 
   if (developerDataObject && developerDataObject.length > 0) {
     developerData = {
@@ -1246,7 +1247,10 @@ function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
-      dashboardSettings: developerDataObject[0].get('Dashboard_Setting') ? developerDataObject[0].get('Dashboard_Setting')[0] : null
+    }
+    
+    if (settingDashboard && settingDashboard.length > 0) {
+      developerData.dashboardSettings = settingDashboard[0];
     }
   }
   return developerData;
