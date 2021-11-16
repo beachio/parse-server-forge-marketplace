@@ -785,6 +785,7 @@ const getPublishedAppsList = async(siteId) => {
         developerContent,
         developerData,
         siteInfo,
+        appObject,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
