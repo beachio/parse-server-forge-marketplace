@@ -763,7 +763,7 @@ const getPublishedAppsList = async(siteId) => {
     query.include(['Content.Screenshots']);
     query.include(['Content.Catgories']);
     query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.MediaItem']);
+    query.include(['Data.Dashboard_Setting.*']);
 
     query.include('Developer');
     query.include('Security');
