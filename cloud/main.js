@@ -1161,6 +1161,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
+      id: appObject._getId(),
       name: appObject.get('Name'),
       slug: appObject.get('Slug'),
       url: appObject.get('URL'),
