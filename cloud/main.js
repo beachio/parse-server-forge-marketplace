@@ -777,7 +777,7 @@ const getPublishedAppsList = async(siteId) => {
     for (const appObject of appObjects) {  
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -848,7 +848,7 @@ const getFeaturedAppsList = async(siteId) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
@@ -913,7 +913,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -982,7 +982,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -1042,7 +1042,7 @@ const searchApps = async(siteId, keyword) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       const security = getSecurityFromAppObject(appObject);
       lst.push({
@@ -1104,7 +1104,7 @@ const getAppDetail = async(siteId, appSlug) => {
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1163,7 +1163,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1233,7 +1233,7 @@ function getDeveloperContentFromAppObject(appObject) {
 }
 
 
-function getDeveloperDataFromAppObject(appObject) {
+async function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
 
@@ -1244,8 +1244,10 @@ function getDeveloperDataFromAppObject(appObject) {
     if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
       dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
       const svg = dashboardSettings.get('SVG_Icon') || null;
-      if(svg) {
-         svgData = svg.toJSON();
+      if (svg) {
+         const query = new Parse.Query("MediaItem");
+         query.equalTo('objectId', svg.__getId());
+         svgData = await query.first({ useMasterKey: true });
       }
 
       //.map(screen => screen.get('file')._url);
