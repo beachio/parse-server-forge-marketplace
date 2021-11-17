@@ -1158,6 +1158,8 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include('Security');
     query.include('Security.Policy');
     query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+
     
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
