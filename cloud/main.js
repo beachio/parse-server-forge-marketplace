@@ -1237,7 +1237,17 @@ function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
 
-  if (developerDataObject && developerDataObject.length > 0) {
+  if (developerDataObject && developerDataObject.length > 0) {    
+    let dashboardSettings = null;
+
+    if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
+      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
+      const svg = dashboardSettings.get('SVG_Icon');
+      dashboardSettings.svg = svg || null;
+      dashboardSettings.svgUrl = svg._url || null;
+
+      //.map(screen => screen.get('file')._url);
+    }
 
     developerData = {
       id: developerDataObject[0].id,
@@ -1249,7 +1259,7 @@ function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
-      dashboardSettings: developerDataObject[0].get('Dashboard_Setting') || null
+      dashboardSettings
     }
   }
   return developerData;
