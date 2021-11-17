@@ -1243,10 +1243,9 @@ function getDeveloperDataFromAppObject(appObject) {
 
     if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
       dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
-      const svg = dashboardSettings.get('SVG_Icon');
-      dashboardSettings.svg = svg[0] || null;
-      if(dashboardSettings.svg) {
-         svgData = svg[0].toJSON();
+      const svg = dashboardSettings.get('SVG_Icon') || null;
+      if(svg) {
+         svgData = svg.toJSON();
       }
 
       //.map(screen => screen.get('file')._url);
