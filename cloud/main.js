@@ -1247,9 +1247,9 @@ async function getDeveloperDataFromAppObject(appObject) {
       dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
       const svg = dashboardSettings.get('SVG_Icon') || null;
       if (svg) {
-         const query = new Parse.Query("MediaItem");
-         query.equalTo('objectId', svg.__getId());
-         svgData = await query.first({ useMasterKey: true });
+//          const query = new Parse.Query("MediaItem");
+//          query.equalTo('objectId', svg.__getId());
+         svgData = svg.toJSON();
       }
 
       //.map(screen => screen.get('file')._url);
