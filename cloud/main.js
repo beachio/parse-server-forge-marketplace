@@ -1241,18 +1241,9 @@ async function getDeveloperDataFromAppObject(appObject) {
 
   if (developerDataObject && developerDataObject.length > 0) {    
     let dashboardSettings = null;
-    let svgData = null;
 
     if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
       dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
-      const svg = dashboardSettings.get('SVG_Icon') || null;
-      if (svg) {
-//          const query = new Parse.Query("MediaItem");
-//          query.equalTo('objectId', svg.__getId());
-         svgData = svg.toJSON();
-      }
-
-      //.map(screen => screen.get('file')._url);
     }
 
     developerData = {
@@ -1266,7 +1257,6 @@ async function getDeveloperDataFromAppObject(appObject) {
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
       dashboardSettings,
-      svgData
     }
   }
   return developerData;
