@@ -1241,12 +1241,12 @@ function getDeveloperDataFromAppObject(appObject) {
     let dashboardSettings = null;
 
     if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
-      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0].toJSON();
-//       const svg = dashboardSettings.get('SVG_Icon');
-//       dashboardSettings.svg = svg[0] || null;
-//       if(dashboardSettings.svg) {
-//          dashboardSettings.svgUrl = svg[0]._url || null;
-//       }
+      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
+      const svg = dashboardSettings.get('SVG_Icon');
+      dashboardSettings.svg = svg[0] || null;
+      if(dashboardSettings.svg) {
+         dashboardSettings.svg = svg[0].toJSON();
+      }
 
       //.map(screen => screen.get('file')._url);
     }
