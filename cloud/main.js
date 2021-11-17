@@ -1261,7 +1261,7 @@ function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
-      dashboardSettings
+      dashboardSettings: dashboardSettings && dashboardSettings.toJson()
     }
   }
   return developerData;
