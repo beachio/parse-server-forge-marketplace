@@ -1249,7 +1249,7 @@ function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
-      dashboardSettings: developerDataObject[0].get('Dashboard_Setting').toJSON() || null
+      dashboardSettings: developerDataObject[0].get('Dashboard_Setting') || null
     }
   }
   return developerData;
