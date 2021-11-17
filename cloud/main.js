@@ -1158,8 +1158,6 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include('Security');
     query.include('Security.Policy');
     query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.SVG_Icon']);
-
     
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
@@ -1245,8 +1243,8 @@ function getDeveloperDataFromAppObject(appObject) {
     if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
       dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
       const svg = dashboardSettings.get('SVG_Icon');
-      dashboardSettings.svg = svg || null;
-      dashboardSettings.svgUrl = svg._url || null;
+      dashboardSettings.svg = svg[0] || null;
+      dashboardSettings.svgUrl = svg[0]._url || null;
 
       //.map(screen => screen.get('file')._url);
     }
