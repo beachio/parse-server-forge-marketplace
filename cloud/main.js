@@ -833,7 +833,6 @@ const getFeaturedAppsList = async(siteId) => {
     query.include('Developer');
     query.include('Security');
     query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.*']);
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
@@ -1159,7 +1158,6 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include('Security');
     query.include('Security.Policy');
     query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.*']);
     
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
@@ -1240,7 +1238,6 @@ function getDeveloperDataFromAppObject(appObject) {
   const developerDataObject = appObject.get('Data');
 
   if (developerDataObject && developerDataObject.length > 0) {
-    const settingDashboard = developerDataObject[0].get('Dashboard_Setting');
 
     developerData = {
       id: developerDataObject[0].id,
@@ -1252,10 +1249,7 @@ function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
-    }
-    
-    if (settingDashboard && settingDashboard.length > 0) {
-      developerData.dashboardSettings = settingDashboard[0];
+      dashboardSettings: developerDataObject[0].get('Dashboard_Setting') || null
     }
   }
   return developerData;
