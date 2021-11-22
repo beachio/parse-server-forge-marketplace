@@ -1157,6 +1157,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include('Developer');
     query.include('Security');
     query.include('Security.Policy');
+    query.include(['Data.Capability']);
     query.include(['Data.Dashboard_Setting']);
     query.include(['Data.Dashboard_Setting.SVG_Icon']);
 
