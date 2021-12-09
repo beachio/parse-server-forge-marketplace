@@ -1331,7 +1331,7 @@ const getDeveloperFromUserId = async(siteId, userId) => {
     // get site name Id and generate MODEL names based on that
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    const currentUser = new Parse.Object('User');
+    const currentUser = new Parse.Object.extend('User');
     currentUser.id = userId;
     developerQuery.equalTo('user', currentUser);
     const developerObject = await developerQuery.first();
