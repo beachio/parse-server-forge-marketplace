@@ -1286,3 +1286,40 @@ function getSecurityFromAppObject(appObject) {
     console.error("get security", error);
   }
 }
+
+
+Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
+  const { userId } = request.params;
+  try {
+    const developer = await getDeveloperFromUserId(userId);
+    
+    return { status: 'success', developer };
+  } catch (error) {
+    console.log('inside getAppDeveloperFromUserId', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDeveloperFromUserId = async(userId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('user', currentUser);
+    const developerObject = await developerQuery.first();
+    
+    if (!developerObject) return null;
+    
+    return {
+      id: developerObject.id,
+      name: developerObject.get('Name'),
+      verified: developerObject.get('Verified') || false,
+      company: developerObject.get('Company') || '',
+      website: developerObject.get('Website') || '',
+      email: developerObject.get('Email') || ''
+    };
+
+  } catch(error) {
+    console.error('inside getDeveloperFromUserId', error);
+    throw error;
+  }
+}
