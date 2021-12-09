@@ -1315,7 +1315,7 @@ Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
     
     return { status: 'success', developer };
   } catch (error) {
-    console.log('inside getAppDeveloperFromUserId', error);
+    console.log('inside getDeveloperFromUserId', error);
     return { status: 'error', error };
   }
 });
@@ -1335,6 +1335,7 @@ const getDeveloperFromUserId = async(siteId, userId) => {
     currentUser.id = userId;
     developerQuery.equalTo('user', currentUser);
     const developerObject = await developerQuery.first();
+    console.log('debug string in getDeveloperFromUserId', DEVELOPER_MODEL_NAME, JSON.stringify(developerObject));
     
     if (!developerObject) return null;
     
