@@ -762,6 +762,10 @@ const getPublishedAppsList = async(siteId) => {
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Catgories']);
+    query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+    query.include(['Data.Capabilities']);
+
     query.include('Developer');
     query.include('Security');
     
@@ -771,19 +775,21 @@ const getPublishedAppsList = async(siteId) => {
     const appObjects = await query.find({ useMasterKey: true });
     
     const lst = [];
-    for (const appObject of appObjects) {    
+    for (const appObject of appObjects) {  
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
+        id: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
         developerContent,
         developerData,
-        siteInfo
+        siteInfo,
+        appObject,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -827,6 +833,7 @@ const getFeaturedAppsList = async(siteId) => {
     query.include(['Content.Screenshots']);
     query.include('Developer');
     query.include('Security');
+    query.include(['Data.Dashboard_Setting']);
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
@@ -842,7 +849,7 @@ const getFeaturedAppsList = async(siteId) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
@@ -907,7 +914,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -976,7 +983,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
@@ -1036,7 +1043,7 @@ const searchApps = async(siteId, keyword) => {
     for (const appObject of appObjects) {    
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       const security = getSecurityFromAppObject(appObject);
       lst.push({
@@ -1098,7 +1105,7 @@ const getAppDetail = async(siteId, appSlug) => {
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1151,15 +1158,20 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include('Developer');
     query.include('Security');
     query.include('Security.Policy');
+    query.include(['Data.Capabilities']);
+    query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+
     
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
+      id: appObject._getId(),
       name: appObject.get('Name'),
       slug: appObject.get('Slug'),
       url: appObject.get('URL'),
@@ -1225,11 +1237,17 @@ function getDeveloperContentFromAppObject(appObject) {
 }
 
 
-function getDeveloperDataFromAppObject(appObject) {
+async function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
 
-  if (developerDataObject && developerDataObject.length > 0) {
+  if (developerDataObject && developerDataObject.length > 0) {    
+    let dashboardSettings = null;
+
+    if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
+      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
+    }
+
     developerData = {
       id: developerDataObject[0].id,
       dataName: developerDataObject[0].get('Data_Name'),
@@ -1238,7 +1256,9 @@ function getDeveloperDataFromAppObject(appObject) {
       rating: developerDataObject[0].get('Rating'),
       isPaid: developerDataObject[0].get('Is_Paid_') || false,
       feeType: developerDataObject[0].get('Fee_Type') || null,
-      feeAmount: developerDataObject[0].get('Fee_Amount') || null
+      feeAmount: developerDataObject[0].get('Fee_Amount') || null,
+      capabilities: developerDataObject[0].get('Capabilities') || null,
+      dashboardSettings,
     }
   }
   return developerData;
