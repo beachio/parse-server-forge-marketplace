@@ -1309,9 +1309,9 @@ function getSecurityFromAppObject(appObject) {
 
 
 Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
-  const { userId } = request.params;
+  const { siteId, userId } = request.params;
   try {
-    const developer = await getDeveloperFromUserId(userId);
+    const developer = await getDeveloperFromUserId(siteId, userId);
     
     return { status: 'success', developer };
   } catch (error) {
@@ -1320,10 +1320,19 @@ Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   }
 });
 
-const getDeveloperFromUserId = async(userId) => {
+const getDeveloperFromUserId = async(siteId, userId) => {
   try {
     // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // get site name Id and generate MODEL names based on that
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    const currentUser = new Parse.Object('User');
+    currentUser.id = userId;
     developerQuery.equalTo('user', currentUser);
     const developerObject = await developerQuery.first();
     
