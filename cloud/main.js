@@ -1195,6 +1195,7 @@ function getDeveloperFromAppObject(appObject) {
 
   if (developerObject && developerObject.length > 0) {
     developer = {
+      id: developerObject[0].id,
       name: developerObject[0].get('Name'),
       verified: developerObject[0].get('Verified') || false,
       company: developerObject[0].get('Company') || '',
