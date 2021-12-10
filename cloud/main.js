@@ -1109,6 +1109,7 @@ const getAppDetail = async(siteId, appSlug) => {
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
+      id: appObject.id,
       name: appObject.get('Name'),
       slug: appObject.get('Slug'),
       url: appObject.get('URL'),
@@ -1222,6 +1223,7 @@ function getDeveloperContentFromAppObject(appObject) {
       }))
     }
     developerContent = {
+      id: developerContentObject[0].id,
       shortName: developerContentObject[0].get('Short_Name'),
       keyImage: developerContentObject[0].get('Key_Image') ? developerContentObject[0].get('Key_Image').get('file')._url : null,
       description: developerContentObject[0].get('Description') || '',
@@ -1289,6 +1291,7 @@ function getSecurityFromAppObject(appObject) {
       const policy = securityObject[0].get('Policy');
       if (policy) {
         security = {
+          id: policy.id,
           name: policy.get('Policy_Name'),
           evalSafePassMax: policy.get('EvalSafe_Pass_Max'),
           evalSafePassMin: policy.get('EvalSafe_Pass_Min'),
@@ -1298,7 +1301,6 @@ function getSecurityFromAppObject(appObject) {
           evalSafeFailMin: policy.get('EvalSafe_Fail_Min'),
           requireSSL: policy.get('RequireSSL'),
           requireForceSSL: policy.get('RequireForceSSL')
-          
         };
       }
     }
