@@ -1219,7 +1219,8 @@ function getDeveloperContentFromAppObject(appObject) {
     if (developerContentObject[0].get('Categories') && developerContentObject[0].get('Categories').length > 0) {
       categories = developerContentObject[0].get('Categories').map(category => ({
         name: category.get('Name'),
-        slug: category.get('Slug')
+        slug: category.get('Slug'),
+        id: category.id
       }))
     }
     developerContent = {
