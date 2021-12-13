@@ -1358,3 +1358,86 @@ const getDeveloperFromUserId = async(siteId, userId) => {
     throw error;
   }
 }
+
+
+Parse.Cloud.define("authorize", async (request) => {
+  const authorizationUri = 'https://app.mural.co/api/public/v1/authorization/oauth2/';
+  try {
+    const query = new URLSearchParams();
+    query.set('client_id', process.env.MURAL_CLIENT_ID);
+    query.set('redirect_uri', process.env.MURAL_REDIRECT_URI);
+    query.set('state', 123);
+    query.set('response_type', 'code');
+    const scopes = [
+      "identity:read"
+    ]
+    query.set('scope', scopes.join(' '));
+	  return { success: true, url: `${authorizationUri}?${query}`};
+  } catch(error) {
+    console.log("authorize error", error);
+    return { success: false, error };
+  }
+});
+
+Parse.Cloud.define("token", async (request) => {
+  try {
+    const { params } = request;
+    const response = await axios.post('https://app.mural.co/api/public/v1/authorization/oauth2/token', 
+      {
+        client_id: process.env.MURAL_CLIENT_ID,
+        client_secret: process.env.MURAL_CLIENT_SECRET,
+        code: params.code,
+        grant_type: 'authorization_code',
+        redirect_uri: process.env.MURAL_REDIRECT_URI
+      });
+    if (response.status!== 200) {
+      throw 'token request failed';
+    }
+    const meResponse = await axios.get('https://app.mural.co/api/public/v1/users/me', {
+      headers: {
+        'Authorization': `Bearer ${response.data.access_token}`
+      }
+    });
+    if (meResponse.status !== 200) {
+      throw 'unauthorized for getting currentUser';
+    }
+    return {
+      success: true,
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+      me: meResponse.data.value
+    };
+    
+  } catch(error) {
+    console.log("token error", error);
+    return { success: false, error };
+  }
+});
+
+
+Parse.Cloud.define("refresh", async (request) => {
+  try {
+    const { params } = request;
+    const { refreshToken } = params;
+    const response = await axios.post('https://app.mural.co/api/public/v1/authorization/oauth2/refresh', 
+      {
+        client_id: process.env.MURAL_CLIENT_ID,
+        client_secret: process.env.MURAL_CLIENT_SECRET,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      });
+    console.log("my response", response);
+    if (response.status!== 200) {
+      throw 'token request failed';
+    }
+    return {
+      success: true,
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token
+    };
+    
+  } catch(error) {
+    console.log("token error", error);
+    return { success: false, error };
+  }
+});
