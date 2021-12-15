@@ -1441,3 +1441,45 @@ Parse.Cloud.define("refresh", async (request) => {
     return { success: false, error };
   }
 });
+
+
+Parse.Cloud.define("getPublisherSettings", async (request) => {
+  const { siteId } = request.params;
+  try {
+    const publisherSetting = await getPublisherSettings(siteId);
+    
+    
+    return { status: 'success', publisherSetting };
+  } catch (error) {
+    console.log('inside getPublisherSettings', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPublisherSettings = async(siteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const PUBLISHER_SETTING_MODEL_NAME = `ct____${siteNameId}____Publisher_Settings`;
+
+    const query = new Parse.Query(PUBLISHER_SETTING_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Logo');
+    
+    const publisherSettingObject = await query.first({ useMasterKey: true });
+    if (!publisherSettingObject) return null;
+    return {
+      name: publisherSettingObject.get('Name'),
+      logo: publisherSettingObject.get('Logo').get('file')._url,
+      primaryColor: publisherSettingObject.get('Primary_Colour'),
+      secondaryColor: publisherSettingObject.get('Secondary_Colour')
+    };
+  } catch(error) {
+    console.error('inside getPublisherSettings', error);
+    throw error;
+  }
+}
