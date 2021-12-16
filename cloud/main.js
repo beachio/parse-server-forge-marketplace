@@ -1369,9 +1369,10 @@ const checkIfMuralAdmin = async(userId) => {
     currentUser.id = userId;
 
     const roleQuery = new Parse.Query('Role');
-    roleQuery.equalTo('users', currentUser);
+    roleQuery.includes('users');
+    // roleQuery.equalTo('users', currentUser);
     const roleObject = await roleQuery.first();
-    console.log("role object", roleObject)
+    console.log("role object", roleObject, roleObject.get('users'))
     if (!roleObject) return false;
     return true;
   } catch(error) {
