@@ -1315,10 +1315,10 @@ function getSecurityFromAppObject(appObject) {
 Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   const { siteId, userId } = request.params;
   try {
-    const developer = await getDeveloperFromUserId(siteId, userId);
-    const isMuralAdmin = await checkIfMuralAdmin(siteId, userId);
-    return { status: 'success', developer, isMuralAdmin };
-    // return { status: 'success', isMuralAdmin };
+    // const developer = await getDeveloperFromUserId(siteId, userId);
+    const isMuralAdmin = await checkIfMuralAdmin(userId);
+    // return { status: 'success', developer, isMuralAdmin };
+    return { status: 'success', isMuralAdmin };
   } catch (error) {
     console.log('inside getDeveloperFromUserId', error);
     return { status: 'error', error };
@@ -1370,12 +1370,16 @@ const checkIfMuralAdmin = async(userId) => {
     currentUser.id = userId;
 
     const roleQuery = new Parse.Query(Parse.Role);
-    roleQuery.equalTo('users', currentUser);
-    roleQuery.include('users')
-    const roleObject = await roleQuery.find();
-    if (!roleObject) return false;
-    console.log("------------------", roleObject);
-    return true;
+    roleQuery.equalTo('name', 'Mural Admin');
+    const roleObject = await roleQuery.first();
+
+    const adminRelation = new Parse.Relation(roleObject, 'users');
+    const queryAdmins = adminRelation.query();
+    const userObjects = await queryAdmins.find();
+    for (const userObject of userObjects) {
+      if (userObject.id.toString() === userId) return true;
+    }
+    return false;
   } catch(error) {
     console.error('inside checkIfMuralAdmin', error);
     throw error;
