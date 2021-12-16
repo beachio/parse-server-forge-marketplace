@@ -1316,8 +1316,8 @@ Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   const { siteId, userId } = request.params;
   try {
     const developer = await getDeveloperFromUserId(siteId, userId);
-    
-    return { status: 'success', developer };
+    const isMuralAdmin = await checkIfMuralAdmin(siteId, userId);
+    return { status: 'success', developer, isMuralAdmin };
   } catch (error) {
     console.log('inside getDeveloperFromUserId', error);
     return { status: 'error', error };
@@ -1359,6 +1359,24 @@ const getDeveloperFromUserId = async(siteId, userId) => {
   }
 }
 
+
+
+
+const checkIfMuralAdmin = async(userId) => {
+  try {
+    const roleQuery = new Parse.Query('Role');
+    const UserModel = Parse.Object.extend('User');
+    const currentUser = new UserModel();
+    currentUser.id = userId;
+    roleQuery.equalTo('users', currentUser);
+    const roleObject = await roleQuery.first();
+    if (!roleObject) return false;
+    return true;
+  } catch(error) {
+    console.error('inside checkIfMuralAdmin', error);
+    throw error;
+  }
+}
 
 Parse.Cloud.define("authorize", async (request) => {
   const authorizationUri = 'https://app.mural.co/api/public/v1/authorization/oauth2/';
