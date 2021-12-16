@@ -1364,12 +1364,14 @@ const getDeveloperFromUserId = async(siteId, userId) => {
 
 const checkIfMuralAdmin = async(userId) => {
   try {
-    const roleQuery = new Parse.Query('Role');
     const UserModel = Parse.Object.extend('User');
     const currentUser = new UserModel();
     currentUser.id = userId;
+
+    const roleQuery = new Parse.Query('Role');
     roleQuery.equalTo('users', currentUser);
     const roleObject = await roleQuery.first();
+    console.log("role object", roleObject)
     if (!roleObject) return false;
     return true;
   } catch(error) {
