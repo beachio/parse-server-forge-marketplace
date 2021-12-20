@@ -1501,9 +1501,10 @@ const getPublisherSettings = async(siteId) => {
     if (!publisherSettingObject) return null;
     return {
       name: publisherSettingObject.get('Name'),
-      logo: publisherSettingObject.get('Logo').get('file')._url,
+      logo: publisherSettingObject.get('Logo') ? publisherSettingObject.get('Logo').get('file')._url : '',
       primaryColor: publisherSettingObject.get('Primary_Colour'),
-      secondaryColor: publisherSettingObject.get('Secondary_Colour')
+      secondaryColor: publisherSettingObject.get('Secondary_Colour'),
+      appsListBanner: publisherSettingObject.get('Apps_List_Banner') ? publisherSettingObject.get('Logo').get('file')._url : ''
     };
   } catch(error) {
     console.error('inside getPublisherSettings', error);
