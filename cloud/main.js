@@ -1291,6 +1291,7 @@ function getSecurityFromAppObject(appObject) {
     if (securityObject && securityObject.length > 0) {
       const policy = securityObject[0].get('Policy');
       if (policy) {
+        console.log("policy", policy);
         security = {
           id: policy.id,
           name: policy.get('Policy_Name'),
