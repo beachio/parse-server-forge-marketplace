@@ -1316,10 +1316,10 @@ function getSecurityFromAppObject(appObject) {
 Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   const { siteId, userId } = request.params;
   try {
-    // const developer = await getDeveloperFromUserId(siteId, userId);
+    const developer = await getDeveloperFromUserId(siteId, userId);
     const isMuralAdmin = await checkIfMuralAdmin(userId);
-    // return { status: 'success', developer, isMuralAdmin };
-    return { status: 'success', isMuralAdmin };
+    return { status: 'success', developer, isMuralAdmin };
+    // return { status: 'success', isMuralAdmin };
   } catch (error) {
     console.log('inside getDeveloperFromUserId', error);
     return { status: 'error', error };
@@ -1371,7 +1371,7 @@ const checkIfMuralAdmin = async(userId) => {
     currentUser.id = userId;
 
     const roleQuery = new Parse.Query(Parse.Role);
-    roleQuery.equalTo('name', 'Mural Admin');
+    roleQuery.equalTo('name', 'Mural Admins');
     const roleObject = await roleQuery.first();
 
     const adminRelation = new Parse.Relation(roleObject, 'users');
