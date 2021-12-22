@@ -1293,16 +1293,16 @@ function getSecurityFromAppObject(appObject) {
       if (policy) {
         console.log("policy", policy);
         security = {
-          id: policy.id,
-          name: policy.get('Policy_Name'),
-          evalSafePassMax: policy.get('EvalSafe_Pass_Max'),
-          evalSafePassMin: policy.get('EvalSafe_Pass_Min'),
-          evalSafeWarningMax: policy.get('EvalSafe_Warning_Max'),
-          evalSafeWarningMin: policy.get('EvalSafe_Warning_Min'),
-          evalSafeFailMax: policy.get('EvalSafe_Fail_Max'),
-          evalSafeFailMin: policy.get('EvalSafe_Fail_Min'),
-          requireSSL: policy.get('RequireSSL'),
-          requireForceSSL: policy.get('RequireForceSSL')
+          id: policy[0].id,
+          name: policy[0].get('Policy_Name'),
+          evalSafePassMax: policy[0].get('EvalSafe_Pass_Max'),
+          evalSafePassMin: policy[0].get('EvalSafe_Pass_Min'),
+          evalSafeWarningMax: policy[0].get('EvalSafe_Warning_Max'),
+          evalSafeWarningMin: policy[0].get('EvalSafe_Warning_Min'),
+          evalSafeFailMax: policy[0].get('EvalSafe_Fail_Max'),
+          evalSafeFailMin: policy[0].get('EvalSafe_Fail_Min'),
+          requireSSL: policy[0].get('RequireSSL'),
+          requireForceSSL: policy[0].get('RequireForceSSL')
         };
       }
     }
@@ -1523,7 +1523,7 @@ Parse.Cloud.define('updateUserData', async(request) => {
   try {
     const currentUser = Parse.User.current();
     console.log("what is the current user", currentUser);
-    const userQuery = new Parse.Query(Parse.User);
+    const userQuery = new Parse.Query('User');
     userQuery.equalTo('id', userId);
     const user = await userQuery.first();
     user.set('username', email);
