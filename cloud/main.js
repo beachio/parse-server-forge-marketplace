@@ -1517,3 +1517,26 @@ const getPublisherSettings = async(siteId) => {
 const getMuralRedirectURI = (devMode) => {
   return devMode ? process.env.DEV_MURAL_REDIRECT_URI : process.env.MURAL_REDIRECT_URI;
 }
+
+Parse.Cloud.define('updateUserData', async(request) => {
+  const { userId, email } = request.params;
+  try {
+    const currentUser = Parse.User.current();
+    console.log("what is the current user", currentUser);
+    const userQuery = new Parse.Query(Parse.User);
+    userQuery.equalTo('id', userId);
+    const user = await userQuery.first();
+    user.set('username', email);
+    user.set('email', email);
+    await user.save({ 
+      'username': response.me.email, 
+      'email': response.me.email
+    }, 
+    { useMasterKey: true, sessionToken: user.get('sessionToken') });
+
+    return { status: 'success', user };
+  } catch (error) {
+    console.log('inside updateUserData', error);
+    return { status: 'error', error };
+  }
+})
