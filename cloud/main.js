@@ -1523,7 +1523,7 @@ Parse.Cloud.define('updateUserData', async(request) => {
   try {
     const currentUser = Parse.User.current();
     console.log("what is the current user", currentUser);
-    const user = await Parse.User();
+    const user = new Parse.User();
     user.id = userId;
     user.set('username', email);
     user.set('email', email);
