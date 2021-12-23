@@ -1518,20 +1518,22 @@ const getMuralRedirectURI = (devMode) => {
   return devMode ? process.env.DEV_MURAL_REDIRECT_URI : process.env.MURAL_REDIRECT_URI;
 }
 
-Parse.Cloud.define('updateUserData', async(request) => {
-  const { userId, email } = request.params;
+// Related with Mural Auth
+Parse.Cloud.define('linkWith', async(request) => {
+  const { authData, email } = request.params;
   try {
-    const currentUser = Parse.User.current();
-    console.log("what is the current user", currentUser);
-    const user = new Parse.User();
-    user.id = userId;
+    let user;
+    // Check for existing user with email given from `token` request response
+    const userQuery = new Parse.Query('User');
+    userQuery.equalTo('email', response.me.email)
+    user = await userQuery.first();
+    if (!user) user = new Parse.User();
+    await user.linkWith('mural', { authData }, { useMasterKey: true });
     user.set('username', email);
     user.set('email', email);
-    user.set('emailVerified', true);
     await user.save({ 
       'username': email, 
-      'email': email,
-      'emailVerified': true
+      'email': email
     }, 
     { useMasterKey: true });
 
