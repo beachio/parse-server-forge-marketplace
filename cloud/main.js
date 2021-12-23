@@ -1525,7 +1525,7 @@ Parse.Cloud.define('linkWith', async(request) => {
     let user;
     // Check for existing user with email given from `token` request response
     const userQuery = new Parse.Query('User');
-    userQuery.equalTo('email', response.me.email)
+    userQuery.equalTo('email', email)
     user = await userQuery.first();
     if (!user) user = new Parse.User();
     await user.linkWith('mural', { authData }, { useMasterKey: true });
