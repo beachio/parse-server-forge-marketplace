@@ -1527,9 +1527,11 @@ Parse.Cloud.define('updateUserData', async(request) => {
     user.id = userId;
     user.set('username', email);
     user.set('email', email);
+    user.set('emailVerified', true);
     await user.save({ 
       'username': email, 
-      'email': email
+      'email': email,
+      'emailVerified': true
     }, 
     { useMasterKey: true });
 

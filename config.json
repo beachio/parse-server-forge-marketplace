@@ -1,8 +1,8 @@
 {
   "parseConfig": {
     "appName": "Chisel",
-    "appId": "SampleAppId",
-    "masterKey": "SampleMasterKey",
+    "appId": "ab75d5c95a32c01cdb463f61db608db0",
+    "masterKey": "a60d166e78fd13911533e9672ca3c7e8",
 
     "port": 1337,
     "URLserver": "http://localhost:1337/parse",
