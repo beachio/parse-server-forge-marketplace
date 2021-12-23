@@ -1523,16 +1523,15 @@ Parse.Cloud.define('updateUserData', async(request) => {
   try {
     const currentUser = Parse.User.current();
     console.log("what is the current user", currentUser);
-    const userQuery = new Parse.Query('User');
-    userQuery.equalTo('id', userId);
-    const user = await userQuery.first();
+    const user = await Parse.User();
+    user.id = userId;
     user.set('username', email);
     user.set('email', email);
     await user.save({ 
-      'username': response.me.email, 
-      'email': response.me.email
+      'username': email, 
+      'email': email
     }, 
-    { useMasterKey: true, sessionToken: user.get('sessionToken') });
+    { useMasterKey: true });
 
     return { status: 'success', user };
   } catch (error) {
