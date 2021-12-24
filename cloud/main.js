@@ -1530,6 +1530,8 @@ Parse.Cloud.define('linkWith', async(request) => {
     if (!user) user = new Parse.User();
     await user.linkWith('mural', { authData }, { useMasterKey: true });
     
+    console.log("what's in here", user.get('email'));
+    /*
     // set username and email for the new user
     if (!user.get('email')) {
       await user.save({ 
@@ -1538,6 +1540,7 @@ Parse.Cloud.define('linkWith', async(request) => {
       }, 
       { useMasterKey: true });
     }
+    */
     return { status: 'success', user };
   } catch (error) {
     console.log('inside updateUserData', error);
