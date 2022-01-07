@@ -1527,8 +1527,8 @@ Parse.Cloud.define('linkWith', async(request) => {
     const userQuery = new Parse.Query('User');
     userQuery.equalTo('email', email)
     user = await userQuery.first();
+    console.log("what's in here", user.get('email'), JSON.stringify(user));
     if (!user) user = new Parse.User();
-    console.log("what's in here", user.get('email'));
     await user.linkWith('mural', { authData }, { useMasterKey: true });
     
     // set username and email for the new user
