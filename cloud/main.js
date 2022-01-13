@@ -1576,12 +1576,17 @@ const activateDeveloper = async(siteId, userId, developerId) => {
     currentUser.id = userId;
 
     // 
+    const DeveloperModel = Parse.Object.extend(DEVELOPER_MODEL_NAME);
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     developerQuery.equalTo('user', currentUser);
     const results = await developerQuery.find();
     for (i = 0; i < results.length; i++) {
-      results[i].set('IsActive', false);
-      await results[i].save();
+      if (results[i].id !== developerId) {
+        const updatedDeveloper = new DeveloperModel();
+        updatedDeveloper.id = results[i].id;
+        updatedDeveloper.set('IsActive', false);
+        await updatedDeveloper.save();
+      }
     }
 
     const currentDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
