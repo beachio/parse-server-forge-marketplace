@@ -1590,7 +1590,7 @@ const activateDeveloper = async(siteId, userId, developerId) => {
     }
 
     const currentDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    currentDeveloperQuery.equalTo('id', developerId);
+    currentDeveloperQuery.equalTo('objectId', developerId);
     const currentDeveloper = await currentDeveloperQuery.first();
     currentDeveloper.set('IsActive', true);
     await currentDeveloper.save();
