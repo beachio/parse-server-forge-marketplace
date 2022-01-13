@@ -1201,7 +1201,8 @@ function getDeveloperFromAppObject(appObject) {
       verified: developerObject[0].get('Verified') || false,
       company: developerObject[0].get('Company') || '',
       website: developerObject[0].get('Website') || '',
-      email: developerObject[0].get('Email') || ''
+      email: developerObject[0].get('Email') || '',
+      isActive: developerObject[0].get('IsActive') || false,
     }
   }
   return developer;
@@ -1353,7 +1354,8 @@ const getDeveloperFromUserId = async(siteId, userId) => {
       verified: developerObject.get('Verified') || false,
       company: developerObject.get('Company') || '',
       website: developerObject.get('Website') || '',
-      email: developerObject.get('Email') || ''
+      email: developerObject.get('Email') || '',
+      isActive: developerObject.get('IsActive') || false,
     };
 
   } catch(error) {
@@ -1601,7 +1603,8 @@ const activateDeveloper = async(siteId, userId, developerId) => {
       verified: currentDeveloper.get('Verified') || false,
       company: currentDeveloper.get('Company') || '',
       website: currentDeveloper.get('Website') || '',
-      email: currentDeveloper.get('Email') || ''
+      email: currentDeveloper.get('Email') || '',
+      isActive: currentDeveloper.get('IsActive') || false,
     };
 
   } catch(error) {
