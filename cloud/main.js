@@ -1341,6 +1341,7 @@ const getDeveloperFromUserId = async(siteId, userId) => {
     const currentUser = new UserModel();
     currentUser.id = userId;
     developerQuery.equalTo('user', currentUser);
+    developerQuery.equalTo('IsActive', true);
     const developerObject = await developerQuery.first();
     console.log('debug string in getDeveloperFromUserId', DEVELOPER_MODEL_NAME, JSON.stringify(developerObject));
     
@@ -1546,3 +1547,60 @@ Parse.Cloud.define('linkWith', async(request) => {
     return { status: 'error', error };
   }
 })
+
+// Related with Mural Auth
+Parse.Cloud.define('activateDeveloper', async(request) => {
+  try {
+    const { siteId, userId, developerId } = request.params;
+    const developer = await activateDeveloper(siteId, userId, developerId);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.log('inside activateDeveloper', error);
+    return { status: 'error', error };
+  }
+});
+
+const activateDeveloper = async(siteId, userId, developerId) => {
+  try {
+    let i;
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // Model related data preparation
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const UserModel = Parse.Object.extend('User');
+    const currentUser = new UserModel();
+    currentUser.id = userId;
+
+    // 
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('user', currentUser);
+    const results = await developerQuery.find();
+    for (i = 0; i < results.length; i++) {
+      results[i].set('IsActive', false);
+      await results[i].save();
+    }
+
+    const currentDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    currentDeveloperQuery.equalTo('id', developerId);
+    const currentDeveloper = await currentDeveloperQuery.first();
+    currentDeveloper.set('IsActive', true);
+    await currentDeveloper.save();
+
+    return {
+      id: currentDeveloper.id,
+      name: currentDeveloper.get('Name'),
+      verified: currentDeveloper.get('Verified') || false,
+      company: currentDeveloper.get('Company') || '',
+      website: currentDeveloper.get('Website') || '',
+      email: currentDeveloper.get('Email') || ''
+    };
+
+  } catch(error) {
+    console.log("inside activateDeveloper function", error);
+    throw error;
+  }
+}
