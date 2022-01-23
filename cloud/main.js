@@ -1271,9 +1271,8 @@ async function getDeveloperDataFromAppObject(appObject) {
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
       facilitatorMode: developerDataObject[0].get('Facilitator_Mode') || null,
-      permissions: developerDataObject[0].get('Permissions') || null,
-      sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || null,
-      developerDataObjectOO: developerDataObject, 
+      permissions: developerDataObject[0].get('Permissions') || [],
+      sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || [],
       dashboardSettings,
     }
   }
