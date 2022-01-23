@@ -765,6 +765,10 @@ const getPublishedAppsList = async(siteId) => {
     query.include(['Data.Dashboard_Setting']);
     query.include(['Data.Dashboard_Setting.SVG_Icon']);
     query.include(['Data.Capabilities']);
+    query.include(['Data.Facilitator_Mode']);
+    query.include(['Data.Permissions']);
+    query.include(['Data.Sandbox_Permissions']);
+
 
     query.include('Developer');
     query.include('Security');
@@ -834,6 +838,9 @@ const getFeaturedAppsList = async(siteId) => {
     query.include('Developer');
     query.include('Security');
     query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Facilitator_Mode']);
+    query.include(['Data.Permissions']);
+    query.include(['Data.Sandbox_Permissions']);
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
@@ -1263,6 +1270,9 @@ async function getDeveloperDataFromAppObject(appObject) {
       feeType: developerDataObject[0].get('Fee_Type') || null,
       feeAmount: developerDataObject[0].get('Fee_Amount') || null,
       capabilities: developerDataObject[0].get('Capabilities') || null,
+      facilitatorMode: developerDataObject[0].get('Facilitator_Mode') || null,
+      permissions: developerDataObject[0].get('Permissions') || null,
+      sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || null,
       dashboardSettings,
     }
   }
