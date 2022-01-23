@@ -1274,6 +1274,7 @@ async function getDeveloperDataFromAppObject(appObject) {
       permissions: developerDataObject[0].get('Permissions') || [],
       sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || [],
       dashboardSettings,
+      developerDataObjectI: developerDataObject
     }
   }
   return developerData;
