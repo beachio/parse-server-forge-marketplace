@@ -1273,6 +1273,7 @@ async function getDeveloperDataFromAppObject(appObject) {
       facilitatorMode: developerDataObject[0].get('Facilitator_Mode') || null,
       permissions: developerDataObject[0].get('Permissions') || null,
       sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || null,
+      developerDataObjectOO: developerDataObject, 
       dashboardSettings,
     }
   }
