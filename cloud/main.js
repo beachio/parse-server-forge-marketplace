@@ -765,9 +765,9 @@ const getPublishedAppsList = async(siteId) => {
     query.include(['Data.Dashboard_Setting']);
     query.include(['Data.Dashboard_Setting.SVG_Icon']);
     query.include(['Data.Capabilities']);
-    query.include(['Data.Facilitator_Mode']);
-    query.include(['Data.Permissions']);
-    query.include(['Data.Sandbox_Permissions']);
+    query.include('Data.Facilitator_Mode');
+    query.include('Data.Permissions');
+    query.include('Data.Sandbox_Permissions');
 
 
     query.include('Developer');
@@ -838,9 +838,9 @@ const getFeaturedAppsList = async(siteId) => {
     query.include('Developer');
     query.include('Security');
     query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Facilitator_Mode']);
-    query.include(['Data.Permissions']);
-    query.include(['Data.Sandbox_Permissions']);
+    query.include('Data.Facilitator_Mode');
+    query.include('Data.Permissions');
+    query.include('Data.Sandbox_Permissions');
     
     const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     readyForSaleQuery.equalTo('Status', 'Ready for Sale');
