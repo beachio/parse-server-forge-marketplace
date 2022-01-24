@@ -793,7 +793,6 @@ const getPublishedAppsList = async(siteId) => {
         developerContent,
         developerData,
         siteInfo,
-        appObject,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1169,6 +1168,9 @@ const getDeveloperAppById = async(siteId, appId) => {
     query.include(['Data.Capabilities']);
     query.include(['Data.Dashboard_Setting']);
     query.include(['Data.Dashboard_Setting.SVG_Icon']);
+    query.include('Data.Facilitator_Mode');
+    query.include('Data.Permissions');
+    query.include('Data.Sandbox_Permissions');
 
     
     const appObject = await query.first({ useMasterKey: true });
@@ -1274,7 +1276,6 @@ async function getDeveloperDataFromAppObject(appObject) {
       permissions: developerDataObject[0].get('Permissions') || [],
       sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || [],
       dashboardSettings,
-      developerDataObjectI: developerDataObject
     }
   }
   return developerData;
