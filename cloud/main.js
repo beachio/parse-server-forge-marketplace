@@ -1656,12 +1656,14 @@ const getDevelopersList = async(siteId) => {
     const list = results.map(developer => (
       {
         id: developer.id,
+        slug: developer.get('Slug') || '',
         name: developer.get('Name'),
         verified: developer.get('Verified') || false,
         company: developer.get('Company') || '',
         website: developer.get('Website') || '',
         email: developer.get('Email') || '',
         isActive: developer.get('IsActive') || false,
+        updatedAt: developer.get('updatedAt')
       }
     ));
     return list;
