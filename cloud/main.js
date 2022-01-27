@@ -1624,3 +1624,50 @@ const activateDeveloper = async(siteId, userId, developerId) => {
     throw error;
   }
 }
+
+
+// Related with Mural Auth
+Parse.Cloud.define('developersList', async(request) => {
+  try {
+    const { siteId } = request.params;
+    const developersList = await getDevelopersList(siteId);
+    return { status: 'success', developersList };
+  } catch (error) {
+    console.log('inside activateDeveloper', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDevelopersList = async(siteId) => {
+  try {
+    let i;
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // Model related data preparation
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('t__status', 'Published');
+    const results = await developerQuery.find();
+
+    const list = results.map(developer => (
+      {
+        id: developer.id,
+        name: developer.get('Name'),
+        verified: developer.get('Verified') || false,
+        company: developer.get('Company') || '',
+        website: developer.get('Website') || '',
+        email: developer.get('Email') || '',
+        isActive: developer.get('IsActive') || false,
+      }
+    ));
+    return list;
+
+  } catch(error) {
+    console.log("inside activateDeveloper function", error);
+    throw error;
+  }
+}
