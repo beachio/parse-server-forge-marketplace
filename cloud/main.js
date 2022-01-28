@@ -1356,7 +1356,6 @@ const getDeveloperFromUserId = async(siteId, userId) => {
     developerQuery.equalTo('user', currentUser);
     developerQuery.equalTo('IsActive', true);
     const developerObject = await developerQuery.first();
-    console.log('debug string in getDeveloperFromUserId', DEVELOPER_MODEL_NAME, JSON.stringify(developerObject));
     
     if (!developerObject) return null;
     
@@ -1670,6 +1669,108 @@ const getDevelopersList = async(siteId) => {
 
   } catch(error) {
     console.log("inside activateDeveloper function", error);
+    throw error;
+  }
+}
+
+
+
+Parse.Cloud.define("getDeveloperDetailBySlug", async (request) => {
+  const { siteId, slug } = request.params;
+  try {
+    const developer = await getDeveloperDetailBySlug(siteId, slug);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.log('inside getDeveloperFromUserId', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDeveloperDetailBySlug = async(siteId, slug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // get site name Id and generate MODEL names based on that
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('Slug', slug);
+    developerQuery.equalTo('t__status', 'Published');
+    const developerObject = await developerQuery.first();
+    
+    if (!developerObject) return null;
+    
+    const appsList = await getAppsListByDeveloperSlug(siteId, slug);
+
+    return {
+      id: developerObject.id,
+      name: developerObject.get('Name'),
+      verified: developerObject.get('Verified') || false,
+      company: developerObject.get('Company') || '',
+      website: developerObject.get('Website') || '',
+      email: developerObject.get('Email') || '',
+      isActive: developerObject.get('IsActive') || false,
+      appsList
+    };
+
+  } catch(error) {
+    console.error('inside getDeveloperFromUserId', error);
+    throw error;
+  }
+}
+
+
+const getAppsListByDeveloperSlug = async(siteId, slug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include('Developer');
+    query.include('Security');
+    
+    query.matchesQuery('Data', readyForSaleQuery);
+
+    const madeByQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    madeByQuery.equalTo('Slug', slug);
+    query.matchesQuery('Developer', madeByQuery);
+
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        siteInfo
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getAppsListByDeveloperSlug', error);
     throw error;
   }
 }
