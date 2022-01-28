@@ -1743,8 +1743,6 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
     query.include('Developer');
     query.include('Security');
     
-    query.matchesQuery('Data', readyForSaleQuery);
-
     const madeByQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     madeByQuery.equalTo('Slug', slug);
     query.matchesQuery('Developer', madeByQuery);
