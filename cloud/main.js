@@ -1131,6 +1131,17 @@ const getAppDetail = async(siteId, appSlug) => {
   }
 }
 
+Parse.Cloud.define("getDeveloperAppByIds", async (request) => {
+  const { siteId, appIds } = request.params;
+  try {
+    const apps = await Promise.All(appIds.map(appId => getDeveloperAppById(siteId, appId)));
+    return { status: 'success', apps };
+  } catch (error) {
+    console.log('inside getDeveloperAppById', error);
+    return { status: 'error', error };
+  }
+});
+
 
 Parse.Cloud.define("getDeveloperAppById", async (request) => {
   const { siteId, appId } = request.params;
