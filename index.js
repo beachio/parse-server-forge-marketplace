@@ -76,11 +76,6 @@ const parseGraphQLServer = new ParseGraphQLServer(
 );
 const app = new express();
 app.use('/parse', parseServer.app);
-app.use(function (req, res, next) {
-    // #TODO fix
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    next();
-});
 parseGraphQLServer.applyGraphQL(app);
 
 
