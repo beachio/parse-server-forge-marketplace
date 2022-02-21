@@ -1304,7 +1304,8 @@ async function getSiteInfoFromAppObject(appObject) {
     return null
   } catch(error) {
     console.error("get site info", error);
-    throw error;
+    // throw error;
+    return null;
   }
 }
 
