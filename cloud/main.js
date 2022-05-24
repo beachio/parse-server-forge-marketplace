@@ -858,6 +858,7 @@ const getFeaturedAppsList = async(siteId) => {
       const developerData = await getDeveloperDataFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
+        id: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         developer,
