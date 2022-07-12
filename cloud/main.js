@@ -993,6 +993,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
       const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
+	id: appObject._getId(),
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
@@ -1054,6 +1055,7 @@ const searchApps = async(siteId, keyword) => {
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       const security = getSecurityFromAppObject(appObject);
       lst.push({
+	id: appObject._getId(),
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
