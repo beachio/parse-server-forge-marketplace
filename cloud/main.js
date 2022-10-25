@@ -704,7 +704,7 @@ Parse.Cloud.define("inviteUser", async request => {
     return "Invite email sent!";
 
   } catch (error) {
-    console.log(`Got an error in inviteUser: ${error}`);
+    console.error(`Got an error in inviteUser: ${error}`);
     throw error;
   }
 });
@@ -739,7 +739,7 @@ Parse.Cloud.define("publishedAppsList", async (request) => {
     
     return { status: 'success', apps: publishedApps };
   } catch (error) {
-    console.log('inside getMyTalks', error);
+    console.error('inside publishedAppsList', error);
     return { status: 'error', error };
   }
 });
@@ -811,7 +811,7 @@ Parse.Cloud.define("featuredAppsList", async (request) => {
     
     return { status: 'success', apps: featuredApps };
   } catch (error) {
-    console.log('inside featuredAppsList', error);
+    console.error('inside featuredAppsList', error);
     return { status: 'error', error };
   }
 });
@@ -869,7 +869,7 @@ const getFeaturedAppsList = async(siteId) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getFeaturedList', error);
+    console.error('inside getFeaturedAppsList', error);
     throw error;
   }
 }
@@ -881,7 +881,7 @@ Parse.Cloud.define("appsMadeBy", async (request) => {
     
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside appsMadeBy', error);
+    console.error('inside appsMadeBy', error);
     return { status: 'error', error };
   }
 });
@@ -936,7 +936,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getAppsMadeBy', error);
+    console.error('inside getAppsListMadeBy function', error);
     throw error;
   }
 }
@@ -949,7 +949,7 @@ Parse.Cloud.define("categoryAppsList", async (request) => {
     
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside getMyTalks', error);
+    console.error('inside categoryAppsList', error);
     return { status: 'error', error };
   }
 });
@@ -993,7 +993,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
       const developerData = await getDeveloperDataFromAppObject(appObject);
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
-	id: appObject._getId(),
+	      id: appObject._getId(),
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
@@ -1019,7 +1019,7 @@ Parse.Cloud.define("searchApps", async (request) => {
     
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside searchApps', error);
+    console.error('inside searchApps', error);
     return { status: 'error', error };
   }
 });
@@ -1055,7 +1055,7 @@ const searchApps = async(siteId, keyword) => {
       const siteInfo = await getSiteInfoFromAppObject(appObject);
       const security = getSecurityFromAppObject(appObject);
       lst.push({
-	id: appObject._getId(),
+	      id: appObject._getId(),
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
@@ -1083,7 +1083,7 @@ Parse.Cloud.define("getAppDetail", async (request) => {
     
     return { status: 'success', appDetail };
   } catch (error) {
-    console.log('inside getAppDetail', error);
+    console.error('inside getAppDetail', error);
     return { status: 'error', error };
   }
 });
@@ -1140,7 +1140,7 @@ Parse.Cloud.define("getDeveloperAppByIds", async (request) => {
     const apps = await Promise.all(appIds.map(appId => getDeveloperAppById(siteId, appId)));
     return { status: 'success', apps };
   } catch (error) {
-    console.log('inside getDeveloperAppById', error);
+    console.error('inside getDeveloperAppById', error);
     return { status: 'error', error };
   }
 });
@@ -1153,7 +1153,7 @@ Parse.Cloud.define("getDeveloperAppById", async (request) => {
     
     return { status: 'success', appDetail };
   } catch (error) {
-    console.log('inside getDeveloperAppById', error);
+    console.error('inside getDeveloperAppById', error);
     return { status: 'error', error };
   }
 });
@@ -1306,7 +1306,7 @@ async function getSiteInfoFromAppObject(appObject) {
     }
     return null
   } catch(error) {
-    console.error("get site info", error);
+    console.error("inside getSiteInfoFromAppObject", error);
     // throw error;
     return null;
   }
@@ -1319,7 +1319,6 @@ function getSecurityFromAppObject(appObject) {
     if (securityObject && securityObject.length > 0) {
       const policy = securityObject[0].get('Policy');
       if (policy) {
-        console.log("policy", policy);
         security = {
           id: policy[0].id,
           name: policy[0].get('Policy_Name'),
@@ -1349,7 +1348,7 @@ Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
     return { status: 'success', developer, isMuralAdmin };
     // return { status: 'success', isMuralAdmin };
   } catch (error) {
-    console.log('inside getDeveloperFromUserId', error);
+    console.error('inside getDeveloperFromUserId', error);
     return { status: 'error', error };
   }
 });
@@ -1431,7 +1430,7 @@ Parse.Cloud.define("authorize", async (request) => {
     query.set('scope', scopes.join(' '));
 	  return { success: true, url: `${authorizationUri}?${query}`};
   } catch(error) {
-    console.log("authorize error", error);
+    console.error('inside authorize', error);
     return { success: false, error };
   }
 });
@@ -1467,7 +1466,7 @@ Parse.Cloud.define("token", async (request) => {
     };
     
   } catch(error) {
-    console.log("token error", error);
+    console.error("inside token", error);
     return { success: false, error };
   }
 });
@@ -1484,7 +1483,6 @@ Parse.Cloud.define("refresh", async (request) => {
         grant_type: 'refresh_token',
         refresh_token: refreshToken
       });
-    console.log("my response", response);
     if (response.status!== 200) {
       throw 'token request failed';
     }
@@ -1495,7 +1493,7 @@ Parse.Cloud.define("refresh", async (request) => {
     };
     
   } catch(error) {
-    console.log("token error", error);
+    console.error("inside refresh", error);
     return { success: false, error };
   }
 });
@@ -1509,7 +1507,7 @@ Parse.Cloud.define("getPublisherSettings", async (request) => {
     
     return { status: 'success', publisherSetting };
   } catch (error) {
-    console.log('inside getPublisherSettings', error);
+    console.error('inside getPublisherSettings', error);
     return { status: 'error', error };
   }
 });
@@ -1538,7 +1536,7 @@ const getPublisherSettings = async(siteId) => {
       appsListBanner: publisherSettingObject.get('Apps_List_Banner') ? publisherSettingObject.get('Logo').get('file')._url : ''
     };
   } catch(error) {
-    console.error('inside getPublisherSettings', error);
+    console.error('inside getPublisherSettings function', error);
     throw error;
   }
 }
@@ -1557,7 +1555,7 @@ Parse.Cloud.define('linkWith', async(request) => {
     userQuery.equalTo('email', email)
     user = await userQuery.first();
     const oldId = user ? user.id : null;
-    console.log("what's in here", oldId, JSON.stringify(user));
+
     if (!user) user = new Parse.User();
     await user.linkWith('mural', { authData }, { useMasterKey: true });
     
@@ -1571,7 +1569,7 @@ Parse.Cloud.define('linkWith', async(request) => {
     }
     return { status: 'success', user };
   } catch (error) {
-    console.log('inside updateUserData', error);
+    console.error('inside linkWith', error);
     return { status: 'error', error };
   }
 })
@@ -1583,7 +1581,7 @@ Parse.Cloud.define('activateDeveloper', async(request) => {
     const developer = await activateDeveloper(siteId, userId, developerId);
     return { status: 'success', developer };
   } catch (error) {
-    console.log('inside activateDeveloper', error);
+    console.error('inside activateDeveloper', error);
     return { status: 'error', error };
   }
 });
@@ -1634,7 +1632,7 @@ const activateDeveloper = async(siteId, userId, developerId) => {
     };
 
   } catch(error) {
-    console.log("inside activateDeveloper function", error);
+    console.error("inside activateDeveloper function", error);
     throw error;
   }
 }
@@ -1647,7 +1645,7 @@ Parse.Cloud.define('developersList', async(request) => {
     const developersList = await getDevelopersList(siteId);
     return { status: 'success', developersList };
   } catch (error) {
-    console.log('inside activateDeveloper', error);
+    console.error('inside developersList', error);
     return { status: 'error', error };
   }
 });
@@ -1683,7 +1681,7 @@ const getDevelopersList = async(siteId) => {
     return list;
 
   } catch(error) {
-    console.log("inside activateDeveloper function", error);
+    console.error("inside getDevelopersList function", error);
     throw error;
   }
 }
@@ -1696,7 +1694,7 @@ Parse.Cloud.define("getDeveloperDetailBySlug", async (request) => {
     const developer = await getDeveloperDetailBySlug(siteId, slug);
     return { status: 'success', developer };
   } catch (error) {
-    console.log('inside getDeveloperFromUserId', error);
+    console.error('inside getDeveloperDetailBySlug', error);
     return { status: 'error', error };
   }
 });
@@ -1732,7 +1730,7 @@ const getDeveloperDetailBySlug = async(siteId, slug) => {
     };
 
   } catch(error) {
-    console.error('inside getDeveloperFromUserId', error);
+    console.error('inside getDeveloperDetailBySlug', error);
     throw error;
   }
 }
@@ -1783,7 +1781,7 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
 
   } catch(error) {
-    console.error('inside getAppsListByDeveloperSlug', error);
+    console.error('inside getAppsListByDeveloperSlug function', error);
     throw error;
   }
 }
