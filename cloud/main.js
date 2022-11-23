@@ -732,6 +732,19 @@ const getSiteNameId = async(siteId) => {
   return siteRecord.get('nameId');
 }
 
+Parse.Cloud.define("getSiteNameId", async (request) => {
+  const { siteId } = request.params;
+  try {
+    const siteNameId = await getSiteNameId(siteId);
+    
+    return { status: 'success', siteNameId };
+  } catch (error) {
+    console.error('inside getSiteNameId', error);
+    return { status: 'error', error };
+  }
+});
+
+
 Parse.Cloud.define("publishedAppsList", async (request) => {
   const { siteId } = request.params;
   try {
