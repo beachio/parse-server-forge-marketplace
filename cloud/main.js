@@ -745,6 +745,74 @@ Parse.Cloud.define("getSiteNameId", async (request) => {
 });
 
 
+Parse.Cloud.define("getAppsList", async (request) => {
+  const { siteId } = request.params;
+  try {
+    const apps = await getAppsList(siteId);
+    
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getAppsList', error);
+    return { status: 'error', error };
+  }
+});
+
+const getAppsList = async(siteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(siteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
+    query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+    query.include(['Data.Capabilities']);
+    query.include('Data.Facilitator_Mode');
+    query.include('Data.Permissions');
+    query.include('Data.Sandbox_Permissions');
+
+
+    query.include('Developer');
+    query.include('Security');
+    
+    const appObjects = await query.find({ useMasterKey: true });
+    
+    const lst = [];
+    for (const appObject of appObjects) {  
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
+      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      lst.push({
+        name: appObject.get('Name'),
+        id: appObject._getId(),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        siteInfo,
+      });
+    }
+    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+
+  } catch(error) {
+    console.error('inside getPublicAppsList', error);
+    throw error;
+  }
+}
+
+
 Parse.Cloud.define("publishedAppsList", async (request) => {
   const { siteId } = request.params;
   try {
