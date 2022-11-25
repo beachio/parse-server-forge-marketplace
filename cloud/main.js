@@ -746,9 +746,9 @@ Parse.Cloud.define("getSiteNameId", async (request) => {
 
 
 Parse.Cloud.define("getAppsList", async (request) => {
-  const { siteId } = request.params;
+  const { siteId, filter: { developer = [], status } } = request.params;
   try {
-    const apps = await getAppsList(siteId);
+    const apps = await getAppsList(siteId, developer, status);
     
     return { status: 'success', apps };
   } catch (error) {
@@ -757,7 +757,7 @@ Parse.Cloud.define("getAppsList", async (request) => {
   }
 });
 
-const getAppsList = async(siteId) => {
+const getAppsList = async(siteId, developerIds, status) => {
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(siteId);
@@ -766,6 +766,8 @@ const getAppsList = async(siteId) => {
     }
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
 
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
@@ -784,6 +786,21 @@ const getAppsList = async(siteId) => {
 
     query.include('Developer');
     query.include('Security');
+
+    
+
+    if (developerIds && developerIds.length > 0) {
+      const developersQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+      developersQuery.containedIn('objectId', developerIds);
+      query.matchesQuery('Developer', developersQuery);
+    }
+    
+
+    if (!!status) {
+      const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+      readyForSaleQuery.equalTo('Status', status);
+      query.matchesQuery('Data', readyForSaleQuery);
+    }
     
     const appObjects = await query.find({ useMasterKey: true });
     
