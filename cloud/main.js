@@ -1739,8 +1739,8 @@ const activateDeveloper = async(siteId, userId, developerId) => {
 // Related with Mural Auth
 Parse.Cloud.define('developersList', async(request) => {
   try {
-    const { siteId } = request.params;
-    const developersList = await getDevelopersList(siteId);
+    const { siteId, verified } = request.params;
+    const developersList = await getDevelopersList(siteId, verified);
     return { status: 'success', developersList };
   } catch (error) {
     console.error('inside developersList', error);
@@ -1748,9 +1748,8 @@ Parse.Cloud.define('developersList', async(request) => {
   }
 });
 
-const getDevelopersList = async(siteId) => {
+const getDevelopersList = async(siteId, verified) => {
   try {
-    let i;
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(siteId);
     if (siteNameId === null) {
@@ -1761,6 +1760,9 @@ const getDevelopersList = async(siteId) => {
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     developerQuery.equalTo('t__status', 'Published');
+    if (verified !== '') {
+      developerQuery.equalTo('Verified', verified);
+    }
     const results = await developerQuery.find();
 
     const list = results.map(developer => (
