@@ -877,19 +877,19 @@ const getPluginsList = async(siteId, developerIds, status) => {
     
     const lst = [];
     for (const appObject of appObjects) {  
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const developer = getDeveloperFromAppObject(appObject);
+      // const developerContent = getDeveloperContentFromAppObject(appObject);
+      // const developerData = await getDeveloperDataFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         id: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        siteInfo,
+        // developer,
+        // developerContent,
+        // developerData,
+        // siteInfo,
       });
     }
     return lst;
