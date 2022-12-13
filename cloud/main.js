@@ -857,7 +857,14 @@ const getPluginsList = async(siteId, developerIds, status) => {
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
     query.include('Data');
+    query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+    query.include(['Data.Capabilities']);
     query.include('Content');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
     query.include('Security');   
 
     if (developerIds && developerIds.length > 0) {
