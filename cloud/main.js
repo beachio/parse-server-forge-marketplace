@@ -804,25 +804,8 @@ const getAppsList = async(siteId, developerIds, status) => {
     
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {  
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
-      lst.push({
-        name: appObject.get('Name'),
-        id: appObject._getId(),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        // siteInfo,
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
-
+    const list = await getAppListFromObjects(appObjects);
+    return list;
   } catch(error) {
     console.error('inside getPublicAppsList', error);
     throw error;
@@ -881,21 +864,23 @@ const getPluginsList = async(siteId, developerIds, status) => {
     }
     
     const appObjects = await query.find({ useMasterKey: true });
-    
-    const lst = await Promise.all(appObjects.map(async(appObject) => {
-      const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      return {
-        name: appObject.get('Name'),
-        id: appObject._getId(),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-      };
-    }));
+
+    const lst = await Promise.all(
+      appObjects.map(async(appObject) => {
+        const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
+        const developerContent = getDeveloperContentFromAppObject(appObject);
+        const developerData = await getDeveloperDataFromAppObject(appObject);
+        return {
+          name: appObject.get('Name'),
+          id: appObject._getId(),
+          slug: appObject.get('Slug'),
+          url: appObject.get('URL'),
+          developer,
+          developerContent,
+          developerData,
+        };
+      })
+    );
     return lst;
 
   } catch(error) {
@@ -952,22 +937,8 @@ const getPublishedAppsList = async(siteId) => {
     query.matchesQuery('Data', readyForSaleQuery);
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {  
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      lst.push({
-        name: appObject.get('Name'),
-        id: appObject._getId(),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside getPublicAppsList', error);
@@ -1023,22 +994,8 @@ const getFeaturedAppsList = async(siteId) => {
 
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {    
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      lst.push({
-        name: appObject.get('Name'),
-        id: appObject._getId(),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside getFeaturedAppsList', error);
@@ -1089,23 +1046,8 @@ const getAppsListMadeBy = async(siteId, companyName) => {
 
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {    
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
-      lst.push({
-        name: appObject.get('Name'),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        // siteInfo
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside getAppsListMadeBy function', error);
@@ -1158,24 +1100,8 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
 
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {    
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
-      lst.push({
-	      id: appObject._getId(),
-        name: appObject.get('Name'),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        // siteInfo
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside getCategoryAppsList', error);
@@ -1183,6 +1109,28 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
   }
 }
 
+const getAppListFromObjects = async (appObjects) => {
+  const list = await Promise.all(
+    appObjects.map(async(appObject) => {
+    
+      const developer = getDeveloperFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
+      return {
+        id: appObject._getId(),
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        developer,
+        developerContent,
+        developerData,
+        // siteInfo
+      };
+    })
+  );
+  return list.sort((a, b) => (a.name > b.name ? 1 : -1));
+}
 
 Parse.Cloud.define("searchApps", async (request) => {
   const { siteId, keyword } = request.params;
@@ -1219,26 +1167,8 @@ const searchApps = async(siteId, keyword) => {
     
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {    
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
-      const security = getSecurityFromAppObject(appObject);
-      lst.push({
-	      id: appObject._getId(),
-        name: appObject.get('Name'),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        security,
-        // siteInfo
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside searchApps', error);
@@ -1312,7 +1242,7 @@ Parse.Cloud.define("getDeveloperAppByIds", async (request) => {
     const apps = await Promise.all(appIds.map(appId => getDeveloperAppById(siteId, appId)));
     return { status: 'success', apps };
   } catch (error) {
-    console.error('inside getDeveloperAppById', error);
+    console.error('inside getDeveloperAppByIds', error);
     return { status: 'error', error };
   }
 });
@@ -1365,7 +1295,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     const developerContent = getDeveloperContentFromAppObject(appObject);
     const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
-    // const siteInfo = await getSiteInfoFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
       id: appObject._getId(),
       name: appObject.get('Name'),
@@ -1375,7 +1305,7 @@ const getDeveloperAppById = async(siteId, appId) => {
       developerContent,
       developerData,
       developerSecurity,
-      // siteInfo
+      siteInfo
     }
   } catch(error) {
     console.error('inside getDeveloperAppById', error);
@@ -1936,23 +1866,8 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
 
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {    
-      const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
-      lst.push({
-        name: appObject.get('Name'),
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        developer,
-        developerContent,
-        developerData,
-        // siteInfo
-      });
-    }
-    return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
+    const list = await getAppListFromObjects(appObjects);
+    return list;
 
   } catch(error) {
     console.error('inside getAppsListByDeveloperSlug function', error);
