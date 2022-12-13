@@ -1836,7 +1836,7 @@ const getDevelopersList = async(siteId, verified) => {
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     developerQuery.equalTo('t__status', 'Published');
-    if (verified !== '') {
+    if (!!verified && verified !== '') {
       developerQuery.equalTo('Verified', verified);
     }
     const results = await developerQuery.find();
