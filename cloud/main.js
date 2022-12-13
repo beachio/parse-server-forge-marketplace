@@ -892,7 +892,7 @@ const getPluginsList = async(siteId, developerIds, status) => {
         id: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
-        developer: appObject.get('developer'),
+        developer: appObject.get('Developer'),
         // developer,
         developerContent,
         developerData,
