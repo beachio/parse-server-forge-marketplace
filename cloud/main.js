@@ -809,7 +809,7 @@ const getAppsList = async(siteId, developerIds, status) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         id: appObject._getId(),
@@ -818,7 +818,7 @@ const getAppsList = async(siteId, developerIds, status) => {
         developer,
         developerContent,
         developerData,
-        siteInfo,
+        // siteInfo,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -878,18 +878,17 @@ const getPluginsList = async(siteId, developerIds, status) => {
     const lst = [];
     for (const appObject of appObjects) {  
       // const developer = getDeveloperFromAppObject(appObject);
-      // const developerContent = getDeveloperContentFromAppObject(appObject);
-      // const developerData = await getDeveloperDataFromAppObject(appObject);
-      // const siteInfo = await getSiteInfoFromAppObject(appObject);
+      const developerContent = getDeveloperContentFromAppObject(appObject);
+      const developerData = await getDeveloperDataFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         id: appObject._getId(),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
+        developer: appObject.get('developer'),
         // developer,
-        // developerContent,
-        // developerData,
-        // siteInfo,
+        developerContent,
+        developerData,
       });
     }
     return lst;
@@ -953,7 +952,6 @@ const getPublishedAppsList = async(siteId) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         id: appObject._getId(),
@@ -962,7 +960,6 @@ const getPublishedAppsList = async(siteId) => {
         developer,
         developerContent,
         developerData,
-        siteInfo,
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1092,7 +1089,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
@@ -1100,7 +1097,7 @@ const getAppsListMadeBy = async(siteId, companyName) => {
         developer,
         developerContent,
         developerData,
-        siteInfo
+        // siteInfo
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1161,7 +1158,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
 	      id: appObject._getId(),
         name: appObject.get('Name'),
@@ -1170,7 +1167,7 @@ const getCategoryAppsList = async(siteId, categorySlug) => {
         developer,
         developerContent,
         developerData,
-        siteInfo
+        // siteInfo
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1222,7 +1219,7 @@ const searchApps = async(siteId, keyword) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       const security = getSecurityFromAppObject(appObject);
       lst.push({
 	      id: appObject._getId(),
@@ -1233,7 +1230,7 @@ const searchApps = async(siteId, keyword) => {
         developerContent,
         developerData,
         security,
-        siteInfo
+        // siteInfo
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1363,7 +1360,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     const developerContent = getDeveloperContentFromAppObject(appObject);
     const developerData = await getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
-    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    // const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
       id: appObject._getId(),
       name: appObject.get('Name'),
@@ -1373,7 +1370,7 @@ const getDeveloperAppById = async(siteId, appId) => {
       developerContent,
       developerData,
       developerSecurity,
-      siteInfo
+      // siteInfo
     }
   } catch(error) {
     console.error('inside getDeveloperAppById', error);
@@ -1939,7 +1936,7 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      const siteInfo = await getSiteInfoFromAppObject(appObject);
+      // const siteInfo = await getSiteInfoFromAppObject(appObject);
       lst.push({
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
@@ -1947,7 +1944,7 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
         developer,
         developerContent,
         developerData,
-        siteInfo
+        // siteInfo
       });
     }
     return lst.sort((a, b) => (a.name > b.name ? 1 : -1));
