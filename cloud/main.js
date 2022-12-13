@@ -886,7 +886,6 @@ const getPluginsList = async(siteId, developerIds, status) => {
     for (const appObject of appObjects) {  
       // const developer = getDeveloperFromAppObject(appObject);
       const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
-      if (developerObject && developerObject.length > 0) {
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
       lst.push({
