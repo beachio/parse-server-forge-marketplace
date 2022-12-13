@@ -882,13 +882,11 @@ const getPluginsList = async(siteId, developerIds, status) => {
     
     const appObjects = await query.find({ useMasterKey: true });
     
-    const lst = [];
-    for (const appObject of appObjects) {  
-      // const developer = getDeveloperFromAppObject(appObject);
+    const lst = await Promise.all(appObjects.map(async(appObject) => {
       const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
       const developerContent = getDeveloperContentFromAppObject(appObject);
       const developerData = await getDeveloperDataFromAppObject(appObject);
-      lst.push({
+      return {
         name: appObject.get('Name'),
         id: appObject._getId(),
         slug: appObject.get('Slug'),
@@ -896,8 +894,8 @@ const getPluginsList = async(siteId, developerIds, status) => {
         developer,
         developerContent,
         developerData,
-      });
-    }
+      };
+    }));
     return lst;
 
   } catch(error) {
