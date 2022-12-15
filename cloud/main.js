@@ -872,7 +872,7 @@ const getPluginsList = async(siteId, developerIds, status) => {
         const developerData = await getDeveloperDataFromAppObject(appObject);
         return {
           name: appObject.get('Name'),
-          id: appObject._getId(),
+          id: appObject.id,
           slug: appObject.get('Slug'),
           url: appObject.get('URL'),
           developer,
@@ -1118,7 +1118,7 @@ const getAppListFromObjects = async (appObjects) => {
       const developerData = await getDeveloperDataFromAppObject(appObject);
       // const siteInfo = await getSiteInfoFromAppObject(appObject);
       return {
-        id: appObject._getId(),
+        id: appObject.id,
         name: appObject.get('Name'),
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
@@ -1297,7 +1297,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
-      id: appObject._getId(),
+      id: appObject.id,
       name: appObject.get('Name'),
       slug: appObject.get('Slug'),
       url: appObject.get('URL'),
