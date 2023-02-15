@@ -726,7 +726,7 @@ Parse.Cloud.define("checkPassword", request => {
 // Get Site nameId to generate Model names
 const getSiteNameId = async(siteId) => {
   const siteQuery = new Parse.Query('Site');
-  siteQuery.equalTo('objectId', siteId);
+  if (siteId) siteQuery.equalTo('objectId', siteId);
   const siteRecord = await siteQuery.first({useMasterKey: true});
   if (!siteRecord || !siteRecord.get('nameId')) return null;
   return siteRecord.get('nameId');
