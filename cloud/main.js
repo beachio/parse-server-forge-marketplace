@@ -722,6 +722,88 @@ Parse.Cloud.define("checkPassword", request => {
   return Parse.User.logIn(username, password);
 });
 
+// Update both draft and published version
+const safeUpdateForChisel = async (ModelName, sourceObject, newData) => {
+  try {
+    Object.keys(newData).forEach((key) => sourceObject.set(key, newData[key]));
+    await sourceObject.save();
+    const query = new Parse.Query(ModelName);
+    query.equalTo('t__owner', sourceObject);
+    const draftObject = await query.first();
+    if (draftObject) {
+      Object.keys(newData)
+        .filter((key) => newData[key])
+        .forEach((key) => draftObject.set(key, newData[key]));
+      await draftObject.save();
+    }
+  } catch (error) {
+    console.log('error in safeUpdateForChisel', error);
+  }
+}
+
+// Create Draft version as well and assign owner
+const safeCreateForChisel = async (ModelName, newData) => {
+  try {
+    const tModelObject = await getModelObject(ModelName);   
+    // This sampleModelObject is for getting ACL and t__color, probably won't be that necessary, though
+    const sampleInstanceQuery = new Parse.Query(ModelName);
+    const sampleInstance = await sampleInstanceQuery.first();
+
+    const ModelModel = Parse.Object.extend(ModelName);
+
+    const object = new ModelModel();
+    const draftObject = new ModelModel();
+    Object.keys(newData)
+      .filter((key) => newData[key])
+      .forEach((key) => {
+        object.set(key, newData[key])
+        draftObject.set(key, newData[key])
+      });
+    object.set('t__status', 'Published');
+    object.set('t__model', tModelObject);
+    await object.save();
+    
+    draftObject.set('t__status', 'Draft');
+    draftObject.set('t__model', tModelObject);
+    draftObject.set('t__owner', object);
+    await draftObject.save();
+    if (sampleInstance) {
+      if (sampleInstance.get('t__color')) {
+        object.set('t__color', sampleInstance.get('t__color'));
+        draftObject.set('t__color', sampleInstance.get('t__color'));
+      }
+      if (sampleInstance.get('ACL')) {
+        object.set('ACL', sampleInstance.get('ACL'));
+        draftObject.set('ACL', sampleInstance.get('ACL'));
+      }
+    }
+    return [object, draftObject];
+  } catch(error) {
+    console.log('Error in safeCreateForChisel', error);
+    return { status: 'error', error };
+  }
+}
+
+
+const getModelObject = async(modelName) => {
+  try {
+    const query = new Parse.Query('Model');
+    query.equalTo('tableName', modelName);
+    const object = await query.first({useMasterKey: true});
+    return object;
+  } catch(error) {
+    console.log('Error in getModelObject', modelName)
+  }
+  return null;
+}
+
+const getDefaultSiteNameId = async () => {
+  const siteQuery = new Parse.Query('Site');
+  const sitetemplate = await siteQuery.first({ useMasterKey: true });
+  if (!sitetemplate || !sitetemplate.get('nameId')) return null;
+  return sitetemplate.get('nameId');
+};
+
 
 // Get Site nameId to generate Model names
 const getSiteNameId = async(siteId) => {
@@ -1764,7 +1846,7 @@ const getDevelopersList = async(siteId, verified = '') => {
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     developerQuery.equalTo('t__status', 'Published');
-    if (verified !== '') {
+    if (verified !== null) {
       developerQuery.equalTo('Verified', verified);
     }
     const results = await developerQuery.find();
@@ -1814,7 +1896,8 @@ const getDeveloperDetailBySlug = async(siteId, slug) => {
     // get site name Id and generate MODEL names based on that
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
     const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    developerQuery.equalTo('Slug', slug);
+    // developerQuery.equalTo('Slug', slug);
+    developerQuery.equalTo('objectId', slug);
     developerQuery.equalTo('t__status', 'Published');
     const developerObject = await developerQuery.first();
     
