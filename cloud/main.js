@@ -2350,3 +2350,51 @@ const getAppsListByDeveloperSlug = async(siteId, slug) => {
     throw error;
   }
 }
+
+
+
+Parse.Cloud.define('policiesList', async() => {
+  try {
+    const policiesList = await getPoliciesList();
+    return { status: 'success', policiesList };
+  } catch (error) {
+    console.error('inside policiesList', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPoliciesList = async() => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // Model related data preparation
+    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
+    const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
+    policyQuery.equalTo('t__status', 'Published');
+    const results = await policyQuery.find();
+
+    const list = results.map(policy => (
+      {
+        id: policy.id,
+        name: policy.get('Policy_Name') || '',
+        evalSafePassMax: policy.get('EvalSafe_Pass_Max'),
+        evalSafePassMin: policy.get('EvalSafe_Pass_Min'),
+        evalSafeWarningMax: policy.get('EvalSafe_Warning_Max'),
+        evalSafeWarningMin: policy.get('EvalSafe_Warning_Min'),
+        evalSafeFailMax: policy.get('EvalSafe_Fail_Max'),
+        evalSafeFailMin: policy.get('EvalSafe_Fail_Min'),
+        requireSSL: policy.get('RequireSSL'),
+        requireForceSSL: policy.get('RequireForceSSL')
+      }
+      ));
+    return list;
+
+  } catch(error) {
+    console.error("inside getPoliciesList function", error);
+    throw error;
+  }
+}
