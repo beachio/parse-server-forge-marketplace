@@ -2452,24 +2452,15 @@ const getPluginsListByPolicy = async (policyId) => {
     
     const policyObject = await policyQuery.first();
 
-    const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
-    securityQuery.equalTo('t__status', 'Published');
-    securityQuery.equalTo('Policy', policyObject);
-    
-    const securityObject = await securityQuery.first();
-
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
-    // query.include('Security');
 
-    query.equalTo('Security', securityObject);
-    
-    // const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
-    // securityQuery.equalTo('Policy', policyObject);
-    // query.matchesQuery('Security', securityQuery);
+    const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
+    securityQuery.equalTo('Policy', policyObject);
+    query.matchesQuery('Security', securityQuery);
 
     const appObjects = await query.find();
-   
+
     const list = await getAppListFromObjects(appObjects);
     return list;   
   } catch(error) {
