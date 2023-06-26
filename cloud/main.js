@@ -1899,14 +1899,26 @@ function getSecurityFromAppObject(appObject) {
         security = {
           id: policy[0].id,
           name: policy[0].get('Policy_Name'),
-          evalSafePassMax: policy[0].get('EvalSafe_Pass_Max'),
-          evalSafePassMin: policy[0].get('EvalSafe_Pass_Min'),
-          evalSafeWarningMax: policy[0].get('EvalSafe_Warning_Max'),
-          evalSafeWarningMin: policy[0].get('EvalSafe_Warning_Min'),
-          evalSafeFailMax: policy[0].get('EvalSafe_Fail_Max'),
-          evalSafeFailMin: policy[0].get('EvalSafe_Fail_Min'),
-          requireSSL: policy[0].get('RequireSSL'),
-          requireForceSSL: policy[0].get('RequireForceSSL')
+          EvalSafe_Pass_Max: policy[0].get('Eval_Safe_Pass_Max'),
+          EvalSafe_Pass_Min: policy[0].get('EvalSafe_Pass_Min'),
+          EvalSafe_Warning_Max: policy[0].get('EvalSafe_Warning_Max'),
+          EvalSafe_Warning_Min: policy[0].get('EvalSafe_Warning_Min'),
+          EvalSafe_Fail_Max: policy[0].get('EvalSafe_Fail_Max'),
+          EvalSafe_Fail_Min: policy[0].get('EvalSafe_Fail_Min'),
+          RequireSSL: policy[0].get('RequireSSL'),
+          RequireForceSSL: policy[0].get('RequireForceSSL'),
+          AllowExternalNetworkRequest: policy[0].get('AllowExternalNetworkRequest'),
+          ExternalRequestAllowList: policy[0].get('ExternalRequestAllowList'),
+          ExternalRequestsBlockList: policy[0].get('ExternalRequestsBlockList'),
+          AllowInsecureNetworkURLs: policy[0].get('AllowInsecureNetworkURLs'),
+          Bandwidth_Day_Usage_Limit: policy[0].get('Bandwidth_Day_Usage_Limit'),
+          BandWidth_Week_Usage_Limit: policy[0].get('BandWidth_Week_Usage_Limit'),
+          Forms_Allowed: policy[0].get('Forms_Allowed'),
+          Forms_Limit: policy[0].get('Forms_Limit'),
+          Allow_Collaborators: policy[0].get('Allow_Collaborators'),
+          Collaborator_Limit: policy[0].get('Collaborator_Limit'),
+          Media_Microphone_Allowed: policy[0].get('Media_Microphone_Allowed'),
+          Media_Camera_Allowed: policy[0].get('Media_Camera_Allowed')
         };
       }
     }
@@ -2381,20 +2393,87 @@ const getPoliciesList = async() => {
       {
         id: policy.id,
         name: policy.get('Policy_Name') || '',
-        evalSafePassMax: policy.get('EvalSafe_Pass_Max'),
-        evalSafePassMin: policy.get('EvalSafe_Pass_Min'),
-        evalSafeWarningMax: policy.get('EvalSafe_Warning_Max'),
-        evalSafeWarningMin: policy.get('EvalSafe_Warning_Min'),
-        evalSafeFailMax: policy.get('EvalSafe_Fail_Max'),
-        evalSafeFailMin: policy.get('EvalSafe_Fail_Min'),
-        requireSSL: policy.get('RequireSSL'),
-        requireForceSSL: policy.get('RequireForceSSL')
+        updatedAt: policy.get('updatedAt') || '',
+        EvalSafe_Pass_Max: policy.get('Eval_Safe_Pass_Max'),
+        EvalSafe_Pass_Min: policy.get('EvalSafe_Pass_Min'),
+        EvalSafe_Warning_Max: policy.get('EvalSafe_Warning_Max'),
+        EvalSafe_Warning_Min: policy.get('EvalSafe_Warning_Min'),
+        EvalSafe_Fail_Max: policy.get('EvalSafe_Fail_Max'),
+        EvalSafe_Fail_Min: policy.get('EvalSafe_Fail_Min'),
+        RequireSSL: policy.get('RequireSSL'),
+        RequireForceSSL: policy.get('RequireForceSSL'),
+        AllowExternalNetworkRequest: policy.get('AllowExternalNetworkRequest'),
+        ExternalRequestAllowList: policy.get('ExternalRequestAllowList'),
+        ExternalRequestsBlockList: policy.get('ExternalRequestsBlockList'),
+        AllowInsecureNetworkURLs: policy.get('AllowInsecureNetworkURLs'),
+        Bandwidth_Day_Usage_Limit: policy.get('Bandwidth_Day_Usage_Limit'),
+        BandWidth_Week_Usage_Limit: policy.get('BandWidth_Week_Usage_Limit'),
+        Forms_Allowed: policy.get('Forms_Allowed'),
+        Forms_Limit: policy.get('Forms_Limit'),
+        Allow_Collaborators: policy.get('Allow_Collaborators'),
+        Collaborator_Limit: policy.get('Collaborator_Limit'),
+        Media_Microphone_Allowed: policy.get('Media_Microphone_Allowed'),
+        Media_Camera_Allowed: policy.get('Media_Camera_Allowed')
       }
       ));
     return list;
 
   } catch(error) {
     console.error("inside getPoliciesList function", error);
+    throw error;
+  }
+}
+
+Parse.Cloud.define('getPluginsListByPolicy', async(request) => {
+  try {
+    const { policyId } = request.params;
+    const pluginsList = await getPluginsListByPolicy(policyId);
+    return { status: 'success', pluginsList };
+  } catch (error) {
+    console.error('inside getPluginsListByPolicy', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPluginsListByPolicy = async (policyId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_SECURITY_MODEL_NAME = `ct____${siteNameId}____Developer_App_Security`;
+    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
+
+    const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
+    policyQuery.equalTo('objectId', policyId);
+    
+    const policyObject = await policyQuery.first();
+
+    const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
+    securityQuery.equalTo('t__status', 'Published');
+    securityQuery.equalTo('Policy', policyObject);
+    
+    const securityObject = await securityQuery.first();
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    // query.include('Security');
+
+    query.equalTo('Security', securityObject);
+    
+    // const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
+    // securityQuery.equalTo('Policy', policyObject);
+    // query.matchesQuery('Security', securityQuery);
+
+    const appObjects = await query.find();
+   
+    const list = await getAppListFromObjects(appObjects);
+    return list;   
+  } catch(error) {
+    console.error('inside getPluginsListByPolicy', error);
     throw error;
   }
 }
