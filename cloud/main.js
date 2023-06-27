@@ -732,7 +732,7 @@ const safeUpdateForChisel = async (ModelName, sourceObject, newData) => {
     const draftObject = await query.first();
     if (draftObject) {
       Object.keys(newData)
-        .filter((key) => newData[key])
+        // .filter((key) => newData[key])
         .forEach((key) => draftObject.set(key, newData[key]));
       await draftObject.save();
     }
@@ -2468,3 +2468,52 @@ const getPluginsListByPolicy = async (policyId) => {
     throw error;
   }
 }
+
+
+
+Parse.Cloud.define("getPluginsListStatistics", async () => {
+  try {
+    const apps = await getPluginsListStatistics();
+    
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getPluginsListStatistics', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getPluginsListStatistics = async() => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    const appObjects = await query.find({ useMasterKey: true });
+
+    const lst = appObjects.map(async(appObject) => {
+      const appData = getDeveloperDataFromAppObject(appObject);
+
+      return {
+        name: appObject.get('Name'),
+        id: appObject.id,
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        appData,
+      };
+    });
+    return lst;
+
+  } catch(error) {
+    console.error('inside getPluginsListStatistics', error);
+    throw error;
+  }
+}
+
