@@ -815,6 +815,58 @@ const safeJSONParse = (paramString) => {
   return param;
 }
 
+Parse.Cloud.define("updateAppInstallsCount", async (request) => {
+  const { appId, offsetAmount = +1 } = request.params;
+  try {
+    await updateAppInstallsCount(appId, offsetAmount);
+    
+    return { status: 'success' };
+  } catch (error) {
+    console.error('inside updateAppInstallsCount', error);
+    return { status: 'error', error };
+  }
+});
+
+
+// Whenever a new apps installs / uninstalls, update installsCount 
+const updateAppInstallsCount = async (appId, offsetAmount = +1) => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    // Get appDataObject from appId
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    appQuery.equalTo('objectId', appId);
+    const appObject = await appQuery.first();
+    if (!appObject || !appObject.get('Data') || !appObject.get('Data')[0].id) {
+      throw { message: 'Bad App Id provided' };
+    }
+    const appDataId = appObject.get('Data')[0].id;
+    const appDataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    appDataQuery.equalTo('objectId', appDataId);
+    const appDataObject = await appDataQuery.first();
+    if (!appDataObject) {
+      throw { message: 'Bad Data.' };
+    }
+
+    // Update count with offsetAmount
+    let count = appDataObject.get('Installs_Count') || 0;
+    count = Math.max(count + offsetAmount, 0); // Prevent count to go lower than zero
+
+    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, {
+      Installs_Count: count
+    });
+
+    return appDataObject;
+
+  } catch(error) {
+    console.error('inside updateAppInstallsCount', error, appId);
+  }
+}
+
 const getInstalledApps = async(params) => {
   const { siteId, userId } = params;
   try {
@@ -854,6 +906,7 @@ const getInstalledApps = async(params) => {
 
 const installApp = async({ appId, siteId, userId }) => {
   try {
+    let returnId = null;
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getDefaultSiteNameId();
     if (siteNameId === null) {
@@ -873,11 +926,14 @@ const installApp = async({ appId, siteId, userId }) => {
       instanceList.push(appInstance);
       record.set('InstanceList', instanceList);
       await record.save();
-      return record.id;
+      returnId = record.id;
     } else {
       const newInstalledApps = createInstalledApps(siteNameId, siteId, userId, appInstance);
-      return newInstalledApps.id;
+      returnId = newInstalledApps.id;
     }
+
+    await updateAppInstallsCount(appId, +1); // Install app to increase installs count by 1
+    return returnId;
 
   } catch(error) {
     console.error('inside installApp function', error);
@@ -1076,7 +1132,7 @@ const uninstallApp = async(params) => {
     const app = await query.first();
 
     if (app) {
-      instanceList = app.get('InstanceList');
+      let instanceList = app.get('InstanceList');
       if (instanceList && instanceList.length > 0) {
         instanceList = instanceList.filter(obj => obj.id !== instanceId);
       }
@@ -1088,7 +1144,16 @@ const uninstallApp = async(params) => {
       query = new Parse.Query(APP_INSTANCE_MODEL_NAME);
       query.equalTo('objectId', instanceId);
       const appInstance = await query.first();
+      
+      // Save developerAppId to decrease installsCount
+      if (!appInstance || !appInstance.get('Developer_App') || !appInstance.get('Developer_App')[0]) {
+        throw { message: 'Bad Instance Id provided' };
+      }
+      const developerAppId = appInstance.get('Developer_App')[0].id;
+
       appInstance.destroy({useMasterKey: true});
+
+      await updateAppInstallsCount(developerAppId, -1); // Uninstall app to decrease installs count by 1
 
       return app.id;
     }
@@ -1359,7 +1424,117 @@ const getPluginsList = async(siteId, developerIds, status) => {
     return lst;
 
   } catch(error) {
-    console.error('inside getPluginList', error);
+    console.error('inside getPluginsList', error);
+    throw error;
+  }
+}
+
+
+Parse.Cloud.define("getTopPluginsList", async (request) => {
+  const { limit = 3, sortBy = 'installsCount' } = request.params;
+  try {
+    const apps = await getTopPluginsList( sortBy, limit );
+
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getTopPluginsList', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getTopPluginsList = async(sortBy, limit) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+
+
+    if (sortBy === 'installsCount') {
+      query.ascending('Data.Installs_Count');
+    } else if (sortBy === 'rating') {
+      query.ascending('Data.Rating');
+    }
+
+    console.log('sort by value===================', sortBy)
+
+    query.limit(limit);
+
+    const appObjects = await query.find({ useMasterKey: true });
+
+    const lst = await Promise.all(
+      appObjects.map(async(appObject) => {       
+        const developerContent = getDeveloperContentFromAppObject(appObject);
+        const developerData = getDeveloperDataFromAppObject(appObject);
+        return {
+          name: appObject.get('Name'),
+          id: appObject.id,
+          slug: appObject.get('Slug'),
+          url: appObject.get('URL'),
+          developerContent,
+          developerData,
+        };
+      })
+    );
+    return lst;
+
+  } catch(error) {
+    console.error('inside getTopPluginsList', error);
+    throw error;
+  }
+}
+
+Parse.Cloud.define("getPluginsListData", async () => {
+  try {
+    const apps = await getPluginsListData();
+
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getPluginsListData', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getPluginsListData = async() => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    const appObjects = await query.find();
+
+    const lst = appObjects.map((appObject) => {
+      const appData = getDeveloperDataFromAppObject(appObject);
+
+      return {
+        name: appObject.get('Name'),
+        id: appObject.id,
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        appData,
+      };
+    });
+    return lst;
+
+  } catch(error) {
+    console.error('inside getPluginsListData', error);
     throw error;
   }
 }
@@ -1590,7 +1765,7 @@ const getAppListFromObjects = async (appObjects) => {
     
       const developer = getDeveloperFromAppObject(appObject);
       const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = await getDeveloperDataFromAppObject(appObject);
+      const developerData = getDeveloperDataFromAppObject(appObject);
       // const siteInfo = await getSiteInfoFromAppObject(appObject);
       return {
         id: appObject.id,
@@ -1691,7 +1866,7 @@ const getAppDetail = async(siteId, appSlug) => {
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = await getDeveloperDataFromAppObject(appObject);
+    const developerData = getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1768,7 +1943,7 @@ const getDeveloperAppById = async(siteId, appId) => {
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
     const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = await getDeveloperDataFromAppObject(appObject);
+    const developerData = getDeveloperDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1800,6 +1975,7 @@ function getDeveloperFromAppObject(appObject) {
       name: developerObject[0].get('Name'),
       verified: developerObject[0].get('Verified') || false,
       company: developerObject[0].get('Company') || '',
+      country: developerObject[0].get('Country') || '',
       website: developerObject[0].get('Website') || '',
       email: developerObject[0].get('Email') || '',
       isActive: developerObject[0].get('IsActive') || false,
@@ -1842,7 +2018,7 @@ function getDeveloperContentFromAppObject(appObject) {
 }
 
 
-async function getDeveloperDataFromAppObject(appObject) {
+function getDeveloperDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
 
@@ -1967,6 +2143,7 @@ const getDeveloperFromUserId = async(siteId, userId) => {
       name: developerObject.get('Name'),
       verified: developerObject.get('Verified') || false,
       company: developerObject.get('Company') || '',
+      country: developerObject.get('Country') || '',
       website: developerObject.get('Website') || '',
       email: developerObject.get('Email') || '',
       isActive: developerObject.get('IsActive') || false,
@@ -2215,6 +2392,7 @@ const activateDeveloper = async(siteId, userId, developerId) => {
       name: currentDeveloper.get('Name'),
       verified: currentDeveloper.get('Verified') || false,
       company: currentDeveloper.get('Company') || '',
+      country: currentDeveloper.get('Country') || '',
       website: currentDeveloper.get('Website') || '',
       email: currentDeveloper.get('Email') || '',
       isActive: currentDeveloper.get('IsActive') || false,
@@ -2263,6 +2441,7 @@ const getDevelopersList = async(siteId, verified = '') => {
         name: developer.get('Name'),
         verified: developer.get('Verified') || false,
         company: developer.get('Company') || '',
+        country: developer.get('Country') || '',
         website: developer.get('Website') || '',
         email: developer.get('Email') || '',
         isActive: developer.get('IsActive') || false,
@@ -2315,6 +2494,7 @@ const getDeveloperDetailBySlug = async(siteId, slug) => {
       name: developerObject.get('Name'),
       verified: developerObject.get('Verified') || false,
       company: developerObject.get('Company') || '',
+      country: developerObject.get('Country') || '',
       website: developerObject.get('Website') || '',
       email: developerObject.get('Email') || '',
       isActive: developerObject.get('IsActive') || false,
@@ -2517,3 +2697,38 @@ const getPluginsListStatistics = async() => {
   }
 }
 
+Parse.Cloud.define('getLatestSDK', async() => {
+  try {
+    const data = await getLatestSDK();
+    return { status: 'success', data };
+  } catch (error) {
+    console.error('inside getLatestSDK', error);
+    return { status: 'error', error };
+  }
+});
+
+const getLatestSDK = async () => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getDefaultSiteNameId();
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const SDK_MODEL_NAME = `ct____${siteNameId}____SDK`;
+
+    const sdkQuery = new Parse.Query(SDK_MODEL_NAME);
+    sdkQuery.equalTo('t__status', 'Published');
+    sdkQuery.descending('updatedAt');
+    const sdkObject = await sdkQuery.first();
+
+    return {
+      id: sdkObject.id,
+      version: sdkObject.get('Version'),
+      src: sdkObject.get('File')._url,
+    }
+  } catch(error) {
+    console.error('inside getLatestSDK', error);
+    throw error;
+  }
+}
