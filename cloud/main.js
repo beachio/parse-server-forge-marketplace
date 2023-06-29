@@ -1409,7 +1409,7 @@ const getPluginsList = async(siteId, developerIds, status) => {
       appObjects.map(async(appObject) => {
         const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
         const developerContent = getDeveloperContentFromAppObject(appObject);
-        const developerData = await getDeveloperDataFromAppObject(appObject);
+        const developerData = getDeveloperDataFromAppObject(appObject);
         return {
           name: appObject.get('Name'),
           id: appObject.id,
@@ -1464,8 +1464,6 @@ const getTopPluginsList = async(sortBy, limit) => {
     } else if (sortBy === 'rating') {
       query.ascending('Data.Rating');
     }
-
-    console.log('sort by value===================', sortBy)
 
     query.limit(limit);
 
@@ -1990,7 +1988,9 @@ function getDeveloperContentFromAppObject(appObject) {
   if (developerContentObject && developerContentObject.length > 0) {
     let screenshots = [];
     if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
-      screenshots = developerContentObject[0].get('Screenshots').map(screen => screen.get('file')._url);
+      screenshots = developerContentObject[0].get('Screenshots')
+        .filter(screen => screen.get('file'))
+        .map(screen => screen.get('file')._url);
     }
     let categories = [];
     if (developerContentObject[0].get('Categories') && developerContentObject[0].get('Categories').length > 0) {
@@ -2000,10 +2000,13 @@ function getDeveloperContentFromAppObject(appObject) {
         id: category.id
       }))
     }
+    let keyImage = null;
+    if (developerContentObject[0].get('Key_Image') && developerContentObject[0].get('Key_Image').get('file'))
+      keyImage = developerContentObject[0].get('Key_Image').get('file')._url;
     developerContent = {
       id: developerContentObject[0].id,
       shortName: developerContentObject[0].get('Short_Name'),
-      keyImage: developerContentObject[0].get('Key_Image') ? developerContentObject[0].get('Key_Image').get('file')._url : null,
+      keyImage,
       description: developerContentObject[0].get('Description') || '',
       termsURL: developerContentObject[0].get('Terms_URL') || '',
       privacyURL: developerContentObject[0].get('Privacy_URL') || '',
