@@ -1450,6 +1450,19 @@ const getTopPluginsList = async(sortBy, limit) => {
     if (siteNameId === null) {
       throw { message: 'Invalid siteId' };
     }
+    
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('t__status', 'Published');
+    if (sortBy === 'installsCount') {
+      dataQuery.descending('Installs_Count');
+    } else if (sortBy === 'rating') {
+      dataQuery.descending('Rating');
+    }
+
+    dataQuery.limit(limit);
+    const dataObjects = await dataQuery.find();
+
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
@@ -1457,16 +1470,8 @@ const getTopPluginsList = async(sortBy, limit) => {
     query.include('Data');
     query.include('Content');
     query.include('Content.Key_Image');
-
-
-    if (sortBy === 'installsCount') {
-      query.ascending('Data.Installs_Count');
-    } else if (sortBy === 'rating') {
-      query.ascending('Data.Rating');
-    }
-
-    query.limit(limit);
-
+    query.containedIn('Data', dataObjects);
+    
     const appObjects = await query.find({ useMasterKey: true });
 
     const lst = await Promise.all(
@@ -1490,6 +1495,7 @@ const getTopPluginsList = async(sortBy, limit) => {
     throw error;
   }
 }
+
 
 Parse.Cloud.define("getPluginsListData", async () => {
   try {
@@ -2724,12 +2730,13 @@ const getLatestSDK = async () => {
     sdkQuery.equalTo('t__status', 'Published');
     sdkQuery.descending('updatedAt');
     const sdkObject = await sdkQuery.first();
-
-    return {
-      id: sdkObject.id,
-      version: sdkObject.get('Version'),
-      src: sdkObject.get('File')._url,
-    }
+    if (sdkObject)
+      return {
+        id: sdkObject.id,
+        version: sdkObject.get('Version'),
+        src: sdkObject.get('File')._url,
+      }
+    return null;
   } catch(error) {
     console.error('inside getLatestSDK', error);
     throw error;
