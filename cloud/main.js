@@ -2426,7 +2426,7 @@ Parse.Cloud.define('developersList', async(request) => {
   }
 });
 
-const getDevelopersList = async(siteId, verified = '') => {
+const getDevelopersList = async(siteId, verified = null) => {
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(siteId);
