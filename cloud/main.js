@@ -2965,47 +2965,7 @@ const createMediaItemFromFile = async(fileRecord) => {
   newMediaItemObject.set('name', fileRecord._name);
   await newMediaItemObject.save();
   return newMediaItemObject;
-
 }
-
-// Called from Plugin Publish Flow
-// To check if we have developerApp linked with the current forge site, search By URL
-Parse.Cloud.define("searchAppByURL", async (request) => {
-  try {
-    const { url } = request.params;
-    const appDetail = await searchAppByURL(url);
-    return { status: 'success', appDetail };
-  } catch (error) {
-    console.error('inside searchAppByURL', error);
-    return { status: 'error', error };
-  }
-});
-
-
-const searchAppByURL = async(url) => {
-  try {
-    const siteNameId = await getDefaultSiteNameId();
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.contains('URL', url);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include(['Content.Catgories']);
-    // query.include(['Data.Capabilities']);
-    query.include('Developer');
-
-    const appObject = await query.first({ useMasterKey: true });
-    if (!appObject) return null;
-    const appDetail = await getAppDetailFromObject(appObject);
-    return appDetail;
-  } catch(error) {
-    console
-  }
-}
-
 // Get Categories list
 Parse.Cloud.define("getCategories", async () => {
   try {
