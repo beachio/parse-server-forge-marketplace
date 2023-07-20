@@ -2742,3 +2742,394 @@ const getLatestSDK = async () => {
     throw error;
   }
 }
+
+// Called from Plugin Publish Flow
+// To check if we have developerApp linked with the current forge site, search By URL
+Parse.Cloud.define("searchAppByURL", async (request) => {
+  try {
+    const { url } = request.params;
+    const appDetail = await searchAppByURL(url);
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('inside searchAppByURL', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const searchAppByURL = async(url) => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.contains('URL', url);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
+    // query.include(['Data.Capabilities']);
+    query.include('Developer');
+
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const appDetail = await getAppDetailFromObject(appObject);
+    return appDetail;
+  } catch(error) {
+    console
+  }
+}
+
+
+// Called from Plugin Publish Flow
+Parse.Cloud.define("buildApp", async (request) => {
+  try {
+    const result = await buildApp(request.params);
+    return { status: 'success', ...result };
+  } catch (error) {
+    console.error('inside buildApp', error);
+    return { status: 'error', error };
+  }
+});
+
+// - Plugin Publish Flow Related
+const buildApp = async (params) => {
+  const { app, appContent, appData, developer, appSecurity } = params;
+  
+  const siteNameId = await getDefaultSiteNameId();
+  const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+  const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
+  const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+  const DEVELOPER_APP_SECURITY_MODEL_NAME = `ct____${siteNameId}____Developer_App_Security`;
+  const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+
+  // Find or Create based on the existing record. 
+  // Main key for now here(to see if the existing record exists) is "app.slug"
+  const appObject = await findOrCreateApp(DEVELOPER_APP_MODEL_NAME, app);
+  let appContentObject, appDataObject, developerObject, appSecurityObject;
+  if (appObject) {
+    appContentObject = (appObject.get('Content') && appObject.get('Content')[0]) ? appObject.get('Content')[0] : null;
+    appContentObject = await findOrCreateAppContent(DEVELOPER_APP_CONTENT_MODEL_NAME, appContentObject, appContent);
+    appDataObject = (appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
+    appDataObject = await findOrCreateAppData(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, appData, siteNameId);
+    developerObject = await findOrCreateDeveloper(DEVELOPER_MODEL_NAME, developer);
+    appSecurityObject = (appObject.get('Security') && appObject.get('Security')[0]) ? appObject.get('Security')[0] : null;
+    appSecurityObject = await findOrCreateAppSecurity(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurityObject, appSecurity);
+
+    // Update appObject with the sorted out Content, Data, Developer object
+    await safeUpdateForChisel(DEVELOPER_APP_MODEL_NAME, appObject, {
+      Content: appContentObject ? [appContentObject] : [], 
+      Data: appDataObject ? [appDataObject] : [],
+      Developer: developerObject ? [developerObject] : [],
+      Security: appSecurityObject ? [appSecurityObject] : []
+    });
+  }
+  return { appObject };
+}
+// - Plugin Publish Flow Related
+const findOrCreateAppContent = async(DEVELOPER_APP_CONTENT_MODEL_NAME, appContentObject, appContent) => {
+  const [screenshotsObjects, keyImageObject] = await handleScreenshots(appContent.Screenshots, appContent.keyImageIndex);
+  const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject };
+  if (appContent.Categories) {
+    const categoriesObjects = await buildCategoryObjectsFromIds(appContent.Categories);
+    newAppContent['Categories'] = categoriesObjects;
+  }
+  if (appContentObject) {
+    await safeUpdateForChisel(DEVELOPER_APP_CONTENT_MODEL_NAME, appContentObject, newAppContent);
+    return appContentObject;
+  } else {
+    const result = await safeCreateForChisel(DEVELOPER_APP_CONTENT_MODEL_NAME, newAppContent);
+    return result && result.length > 0 ? result[0] : null;
+  }
+}
+
+const buildCapabilitiesObjects = (id, siteNameId) => {
+  const CAPABILITY_MODEL_NAME = `ct____${siteNameId}____Capability`;
+  const CapabilityModel = Parse.Object.extend(CAPABILITY_MODEL_NAME);
+  if (id) {
+    const object = new CapabilityModel();
+    object.id = id;
+    return [object];
+  }
+
+  return [];
+}
+
+// - Plugin Publish Flow Related
+const findOrCreateAppData = async(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, appData, siteNameId) => {
+  const Capabilities = await buildCapabilitiesObjects(appData.Capabilities, siteNameId);
+  const newAppData = { ...appData, Capabilities };
+
+  if (appDataObject) {
+    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
+    return appDataObject
+  } else {
+    const result = await safeCreateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, newAppData);
+    return result && result.length > 0 ? result[0] : null;
+  }
+}
+// - Plugin Publish Flow Related
+const findOrCreateDeveloper = async(DEVELOPER_MODEL_NAME, developer) => {
+  if (!developer || !developer.Email) return;
+  const query = new Parse.Query(DEVELOPER_MODEL_NAME);
+  query.equalTo('Email', developer.Email);
+  query.equalTo('t__status', 'Published');
+  let developerObject = await query.first();
+  if (developerObject)
+    await safeUpdateForChisel(DEVELOPER_MODEL_NAME, developerObject, developer);
+  else {
+    developerObject = await safeCreateForChisel(DEVELOPER_MODEL_NAME, developer);
+    developerObject = developerObject ? developerObject[0] : null;
+  }
+  return developerObject;
+}
+
+// - Plugin Publish Flow Related
+const findOrCreateAppSecurity = async(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurityObject, appSecurity) => {
+  if (appSecurityObject) {
+    await safeUpdateForChisel(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurityObject, appSecurity);
+    return appSecurityObject;
+  } else {
+    const result = await safeCreateForChisel(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurity);
+    return result && result.length > 0 ? result[0] : null;
+  }
+}
+
+
+// - Plugin Publish Flow Related
+const findOrCreateApp = async(DEVELOPER_APP_MODEL_NAME, app) => {
+  const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+  query.equalTo('objectId', app.id);
+  query.equalTo('t__status', 'Published');
+  let appObject = await query.first();
+  if (appObject) {
+    await safeUpdateForChisel(DEVELOPER_APP_MODEL_NAME, appObject, app);
+    appObject = await query.first();
+  } else {
+    const result = await safeCreateForChisel(DEVELOPER_APP_MODEL_NAME, app);
+    appObject = result && result.length > 0 ? result[0] : null;
+  }
+  return appObject
+}
+// - Plugin Publish Flow Related
+// - Handle mixed format of screenshot to a list of Screenshot objects
+const handleScreenshots = async(screenshots, keyImageIndex) => {
+  let keyImageScreenshot = null;
+  if (!screenshots || screenshots.length < 1) return [[], null];
+  const promises = screenshots.map(async (screenshot) => {
+    let object;
+    if (screenshot.id) {
+      object = createMediaItemInstanceWithId(screenshot.id);
+    } else {
+      object = await createMediaItemFromFile(screenshot);
+    }
+    return object;
+  });
+  
+  const objects = await Promise.all(promises);
+  if (keyImageIndex !== -1 && keyImageIndex < objects.length)
+    keyImageScreenshot = Parse.Object.extend("MediaItem").createWithoutData(objects[keyImageIndex].id);
+  return [objects, keyImageScreenshot];
+}
+
+
+// - Plugin Publish Flow Related
+// - Convert categories ids to Category Objects
+const buildCategoryObjectsFromIds = async(categoryIds) => {
+  const siteNameId = await getDefaultSiteNameId();
+  const CategoryModel = Parse.Object.extend(`ct____${siteNameId}____Category`);
+  return categoryIds.map(id => {
+    const object = new CategoryModel();
+    object.id = id;
+    return object;
+  })
+}
+
+const createMediaItemInstanceWithId = async(objectId) => {
+  const MediaItemModel = Parse.Object.extend('MediaItem');
+  const newMediaItemObject = new MediaItemModel();
+  newMediaItemObject.id = objectId;
+  return newMediaItemObject;
+}
+const createMediaItemFromFile = async(fileRecord) => {
+  const siteQuery = new Parse.Query('Site');
+  const siteObject = await siteQuery.first({ useMasterKey: true });
+  const MediaItemModel = Parse.Object.extend('MediaItem');
+  const newMediaItemObject = new MediaItemModel();
+  newMediaItemObject.set('site', siteObject);
+  newMediaItemObject.set('assigned', true);
+  newMediaItemObject.set('type', fileRecord._type);
+  newMediaItemObject.set('size', fileRecord._size);
+  newMediaItemObject.set('file', fileRecord);
+  newMediaItemObject.set('name', fileRecord._name);
+  await newMediaItemObject.save();
+  return newMediaItemObject;
+
+}
+
+// Called from Plugin Publish Flow
+// To check if we have developerApp linked with the current forge site, search By URL
+Parse.Cloud.define("searchAppByURL", async (request) => {
+  try {
+    const { url } = request.params;
+    const appDetail = await searchAppByURL(url);
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('inside searchAppByURL', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const searchAppByURL = async(url) => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.contains('URL', url);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
+    // query.include(['Data.Capabilities']);
+    query.include('Developer');
+
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const appDetail = await getAppDetailFromObject(appObject);
+    return appDetail;
+  } catch(error) {
+    console
+  }
+}
+
+// Get Categories list
+Parse.Cloud.define("getCategories", async () => {
+  try {
+    const categories = await getCategories();
+    return { status: 'success', categories };
+  } catch (error) {
+    console.error('inside getCategories', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getCategories = async() => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    const CATEGORY_MODEL_NAME = `ct____${siteNameId}____Category`;
+    const query = new Parse.Query(CATEGORY_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    const categoryObjects = await query.find();
+    if (categoryObjects && categoryObjects.length > 0) {
+      return categoryObjects.map((object) => ({
+        id: object.id,
+        name: object.get('Name'),
+        slug: object.get('Slug'),
+      }));
+    }
+    return [];
+  } catch(error) {
+    console.error('Error in getCategories', error);
+  }
+}
+
+
+// Get Categories list
+Parse.Cloud.define("getCapabilities", async () => {
+  try {
+    const capabilities = await getCapabilities();
+    return { status: 'success', capabilities };
+  } catch (error) {
+    console.error('inside getCapabilities', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getCapabilities = async() => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    const CAPABILITY_MODEL_NAME = `ct____${siteNameId}____Capability`;
+    const query = new Parse.Query(CAPABILITY_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    const capabilityObjects = await query.find();
+    if (capabilityObjects && capabilityObjects.length > 0) {
+      return capabilityObjects.map((object) => ({
+        id: object.id,
+        name: object.get('Name'),
+        slug: object.get('Slug'),
+        description: object.get('Description'),
+      }));
+    }
+    return [];
+  } catch(error) {
+    console.error('Error in getCapabilities', error);
+  }
+}
+
+// Get Categories list
+Parse.Cloud.define("findDeveloperByEmail", async (request) => {
+  try {
+    const { email } = request.params;
+    const developer = await findDeveloperByEmail(email);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.error('inside findDeveloperByEmail', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const findDeveloperByEmail = async(email) => {
+  try {
+    const siteNameId = await getDefaultSiteNameId();
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const query = new Parse.Query(DEVELOPER_MODEL_NAME);
+    query.equalTo('Email', email);
+    query.equalTo('t__status', 'Published');
+    let developerObject = await query.first();
+    if (developerObject)
+      return {
+        id: developerObject.id,
+        name: developerObject.get('Name'),
+        verified: developerObject.get('Verified') || false,
+        company: developerObject.get('Company') || '',
+        country: developerObject.get('Country') || '',
+        website: developerObject.get('Website') || '',
+        email: developerObject.get('Email') || '',
+        isActive: developerObject.get('IsActive') || false,
+      }
+  } catch(error) {
+    console.error('Error in findDeveloperByEmail', error);
+  }
+  return null;
+}
+
+
+Parse.Cloud.define("uploadFile", async (request) => {
+  try {
+    const { fileName, base64 } = request.params;
+    const parseFile = new Parse.File(fileName, { base64 });
+    await parseFile.save({ useMasterKey: true });
+    return { status: 'success', parseFile };
+  } catch(error) {
+    console.error('Error in uploadFile', error);
+  }
+
+});
+
+
+Parse.Cloud.define("destroyFile", async (request) => {
+  try {
+    const { file } = request.params;
+    await file.destroy({ useMasterKey: true });
+    return { status: 'success' };
+  } catch(error) {
+    console.error('Error in destroyFile', error);
+  }
+});
