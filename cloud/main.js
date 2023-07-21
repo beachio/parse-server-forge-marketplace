@@ -798,10 +798,11 @@ const getModelObject = async(modelName) => {
 }
 
 const getDefaultSiteNameId = async () => {
-  const siteQuery = new Parse.Query('Site');
-  const sitetemplate = await siteQuery.first({ useMasterKey: true });
-  if (!sitetemplate || !sitetemplate.get('nameId')) return null;
-  return sitetemplate.get('nameId');
+  // const siteQuery = new Parse.Query('Site');
+  // const sitetemplate = await siteQuery.first({ useMasterKey: true });
+  // if (!sitetemplate || !sitetemplate.get('nameId')) return null;
+  // return sitetemplate.get('nameId');
+  return 'steves_40mural_2eco__PowerPlays';
 };
 
 
