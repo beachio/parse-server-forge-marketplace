@@ -798,12 +798,35 @@ const getModelObject = async(modelName) => {
 }
 
 const getDefaultSiteNameId = async () => {
-  // const siteQuery = new Parse.Query('Site');
-  // const sitetemplate = await siteQuery.first({ useMasterKey: true });
-  // if (!sitetemplate || !sitetemplate.get('nameId')) return null;
-  // return sitetemplate.get('nameId');
-  return 'steves_40mural_2eco__PowerPlays';
+  const siteQuery = new Parse.Query('Site');
+  const sitetemplate = await siteQuery.first({ useMasterKey: true });
+  if (!sitetemplate || !sitetemplate.get('nameId')) return null;
+  return sitetemplate.get('nameId');
 };
+
+
+// Get Site nameId to generate Model names
+const getSiteNameId = async(siteId, parseServerSiteId) => {
+  const siteQuery = new Parse.Query('Site');
+  if (siteId) siteQuery.equalTo('objectId', siteId);
+  if (parseServerSiteId) siteQuery.equalTo('objectId', parseServerSiteId);
+  const siteRecord = await siteQuery.first({useMasterKey: true});
+  if (!siteRecord || !siteRecord.get('nameId')) return null;
+  return siteRecord.get('nameId');
+}
+
+Parse.Cloud.define("getSiteNameId", async (request) => {
+  const { siteId, parseServerSiteId } = request.params;
+  try {
+    const siteNameId = await getSiteNameId(siteId, parseServerSiteId);
+    
+    return { status: 'success', siteNameId };
+  } catch (error) {
+    console.error('inside getSiteNameId', error);
+    return { status: 'error', error };
+  }
+});
+
 
 
 const safeJSONParse = (paramString) => {
@@ -1165,28 +1188,6 @@ const uninstallApp = async(params) => {
   }
 }
 
-
-
-// Get Site nameId to generate Model names
-const getSiteNameId = async(siteId) => {
-  const siteQuery = new Parse.Query('Site');
-  if (siteId) siteQuery.equalTo('objectId', siteId);
-  const siteRecord = await siteQuery.first({useMasterKey: true});
-  if (!siteRecord || !siteRecord.get('nameId')) return null;
-  return siteRecord.get('nameId');
-}
-
-Parse.Cloud.define("getSiteNameId", async (request) => {
-  const { siteId } = request.params;
-  try {
-    const siteNameId = await getSiteNameId(siteId);
-    
-    return { status: 'success', siteNameId };
-  } catch (error) {
-    console.error('inside getSiteNameId', error);
-    return { status: 'error', error };
-  }
-});
 
 
 Parse.Cloud.define("getUserInstalledApps", async (request) => {
