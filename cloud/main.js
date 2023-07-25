@@ -2406,6 +2406,34 @@ const searchAppByURL = async(parseServerSiteId, url) => {
   }
 }
 
+const getAppDetailFromObject = async(appObject) => {
+  try {
+    const developer = getDeveloperFromAppObject(appObject);
+    const developerContent = getDeveloperContentFromAppObject(appObject);
+    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerSecurity = getSecurityFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    return {
+      id: appObject.id,
+      name: appObject.get('Name'),
+      slug: appObject.get('Slug'),
+      url: appObject.get('URL'),
+      siteId: appObject.get('SiteId'),
+      kind: appObject.get('Kind'),
+      userId: appObject.get('UserId'),
+      installParams: appObject.get('InstallParams'),
+      developer,
+      developerContent,
+      developerData,
+      developerSecurity,
+      siteInfo,
+    }
+  } catch(error) {
+    console.error('getAppDetailFromObject', error);
+  }
+}
+
+
 
 // Called from Plugin Publish Flow
 Parse.Cloud.define("buildApp", async (request) => {
