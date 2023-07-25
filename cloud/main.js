@@ -2397,7 +2397,7 @@ const searchAppByURL = async(parseServerSiteId, url) => {
     query.include('Developer');
 
     const appObject = await query.first({ useMasterKey: true });
-    if (!appObject) return null;
+    if (!appObject) return DEVELOPER_APP_MODEL_NAME;
     const appDetail = await getAppDetailFromObject(appObject);
     return appDetail;
   } catch(error) {
