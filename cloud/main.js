@@ -2453,6 +2453,7 @@ const buildApp = async (params) => {
 // - Plugin Publish Flow Related
 const findOrCreateAppContent = async(siteNameId, appContentObject, appContent) => {
   const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
+  const [screenshotsObjects, keyImageObject] = await handleScreenshots(appContent.Screenshots, appContent.keyImageIndex);
   const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject };
   if (appContent.Categories) {
     const categoriesObjects = await buildCategoryObjectsFromIds(siteNameId, appContent.Categories);
