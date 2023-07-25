@@ -2372,7 +2372,7 @@ const getLatestSDK = async (parseServerSiteId) => {
 Parse.Cloud.define("searchAppByURL", async (request) => {
   try {
     const { parseServerSiteId, url } = request.params;
-    const appDetail = await searchAppByURL(url);
+    const appDetail = await searchAppByURL(parseServerSiteId, url);
     return { status: 'success', appDetail };
   } catch (error) {
     console.error('inside searchAppByURL', error);
