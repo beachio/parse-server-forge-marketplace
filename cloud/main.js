@@ -2401,7 +2401,8 @@ const searchAppByURL = async(parseServerSiteId, url) => {
     const appDetail = await getAppDetailFromObject(appObject);
     return appDetail;
   } catch(error) {
-    console
+    console.error('inside searchAppByURL', error);
+    return error;
   }
 }
 
