@@ -2468,7 +2468,9 @@ const buildApp = async (params) => {
     developerObject = await findOrCreateDeveloper(DEVELOPER_MODEL_NAME, developer);
     appSecurityObject = (appObject.get('Security') && appObject.get('Security')[0]) ? appObject.get('Security')[0] : null;
     appSecurityObject = await findOrCreateAppSecurity(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurityObject, appSecurity);
-
+    
+    console.log('I get this developer------------------', developer, developerObject);
+    console.log('After this developer------------------', appObject, DEVELOPER_APP_MODEL_NAME);
     // Update appObject with the sorted out Content, Data, Developer object
     await safeUpdateForChisel(DEVELOPER_APP_MODEL_NAME, appObject, {
       Content: appContentObject ? [appContentObject] : [], 
