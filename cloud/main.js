@@ -2750,3 +2750,56 @@ Parse.Cloud.define("destroyFile", async (request) => {
     console.error('Error in destroyFile', error);
   }
 });
+
+Parse.Cloud.define("removeApp", async (request) => {
+  try {
+    const { parseServerSiteId, appId } = request.params;
+    const result = await removeApp(parseServerSiteId, appId);
+    return { status: 'success', result };
+  } catch(error) {
+    console.error('Error in removeApp', error);
+  }
+});
+
+const removeApp = async(appId) => {
+  try {
+    console.log('inside remove app', appId)
+  } catch(error) {
+    console.error('inside removeApp function', error);
+    throw error;
+  }
+}
+
+Parse.Cloud.define("removeDeveloper", async (request) => {
+  try {
+    const { parseServerSiteId, developerId } = request.params;
+    const result = await removeDeveloper(parseServerSiteId, developerId);
+    return { status: 'success', result };
+  } catch(error) {
+    console.error('Error in removeDeveloper', error);
+  }
+});
+
+const removeDeveloper = async(parseServerSiteId, developerId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const query = new Parse.Query(DEVELOPER_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('objectId', developerId.toString());
+        
+    const developer = await query.first();
+
+    if (developer) {
+      developer.destroy({useMasterKey: true});
+    }
+  } catch(error) {
+    console.error('inside removeDeveloper function', error);
+    throw error;
+  }
+}
