@@ -738,6 +738,9 @@ const safeUpdateForChisel = async (ModelName, sourceObject, newData) => {
     }
   } catch (error) {
     console.log('error in safeUpdateForChisel', error);
+    console.log('Params == ModelName', ModelName);
+    console.log('Params == source object', sourceObject);
+    console.log('Params == newData', newData);
   }
 }
 
