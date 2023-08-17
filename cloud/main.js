@@ -1616,8 +1616,11 @@ function getAppContentFromAppObject(appObject) {
     if (developerContentObject[0].get('Icon')) {
       icon = developerContentObject[0].get('Icon').get('file');
     }
-    let screenshots = [];
+    let screenshots = [], screenshotObjects = [];
     if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
+      screenshotObjects = developerContentObject[0].get('Screenshots')
+        .filter(screen => screen.get('file'))
+        .map(screen => screen.get('file'));
       screenshots = developerContentObject[0].get('Screenshots')
         .filter(screen => screen.get('file'))
         .map(screen => screen.get('file')._url);
@@ -1645,7 +1648,8 @@ function getAppContentFromAppObject(appObject) {
       filters: developerContentObject[0].get('Filters') || [],
       categories,
       icon,
-      screenshots
+      screenshots,
+      screenshotObjects
     }
   }
   return developerContent;
