@@ -2037,8 +2037,20 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
   }
 }
 
+// NEW CODE: Used from forge-client only for now.
+Parse.Cloud.define('getDevelopersList', async(request) => {
+  try {
+    const { parseServerSiteId, verified } = request.params;
+    const developersList = await getDevelopersList(parseServerSiteId, verified);
+    return { status: 'success', developersList };
+  } catch (error) {
+    console.error('Error in getDevelopersList', error);
+    return { status: 'error', error };
+  }
+});
 
-// Related with Mural Auth
+
+// LEGACY Code
 Parse.Cloud.define('developersList', async(request) => {
   try {
     const { parseServerSiteId, verified } = request.params;
