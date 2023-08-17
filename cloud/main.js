@@ -2392,6 +2392,52 @@ const getPluginsListStatistics = async(parseServerSiteId) => {
   }
 }
 
+Parse.Cloud.define("getPluginDetail", async (request) => {
+  const { parseServerSiteId, appSlug } = request.params;
+  try {
+    const appDetail = await getPluginDetailBySlug(parseServerSiteId, appSlug);
+    
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('Error in getPluginDetail', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPluginDetailBySlug = async(parseServerSiteId, appSlug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('Slug', appSlug)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Icon');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Categories']);
+    query.include('Developer');
+    query.include('Security');
+    query.include('Security.Policy');
+    
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const appDetail = await getAppDetailFromObject(appObject);
+    return appDetail;
+  } catch(error) {
+    console.error('Error in getPluginDetailBySlug function', error);
+    throw error;
+  }
+}
+
+
 Parse.Cloud.define('getLatestSDK', async(request) => {
   const { parseServerSiteId } = request.params;
   try {
