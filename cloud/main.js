@@ -933,6 +933,7 @@ const getAppsList = async(parseServerSiteId, developerIds, status) => {
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Catgories']);
@@ -1194,6 +1195,7 @@ const getPublishedAppsList = async(parseServerSiteId) => {
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Catgories']);
@@ -1366,6 +1368,7 @@ const getCategoryAppsList = async(parseServerSiteId, categorySlug) => {
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include('Developer');
@@ -1483,6 +1486,7 @@ const getAppDetail = async(parseServerSiteId, appSlug) => {
     query.equalTo('Slug', appSlug)
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Categories']);
@@ -1553,6 +1557,7 @@ const getDeveloperAppById = async(parseServerSiteId, appId) => {
     query.equalTo('objectId', appId)
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Categories']);
@@ -2216,6 +2221,7 @@ const getAppsListByDeveloperSlug = async(parseServerSiteId, slug) => {
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include('Developer');
@@ -2499,6 +2505,7 @@ const searchAppByURL = async(parseServerSiteId, url) => {
     query.equalTo('t__status', 'Published');
     query.include('Data');
     query.include('Content');
+    query.include('Content.Icon');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
     query.include(['Content.Catgories']);
@@ -2593,8 +2600,9 @@ const buildApp = async (params) => {
 // - Plugin Publish Flow Related
 const findOrCreateAppContent = async(siteNameId, appContentObject, appContent) => {
   const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
+  const iconObject = await handleIcon(appContent.Icon);
   const [screenshotsObjects, keyImageObject] = await handleScreenshots(appContent.Screenshots, appContent.keyImageIndex);
-  const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject };
+  const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject, Icon: iconObject };
   if (appContent.Categories) {
     const categoriesObjects = await buildCategoryObjectsFromIds(siteNameId, appContent.Categories);
     newAppContent['Categories'] = categoriesObjects;
@@ -2658,6 +2666,19 @@ const findOrCreateAppSecurity = async(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecu
     const result = await safeCreateForChisel(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurity);
     return result && result.length > 0 ? result[0] : null;
   }
+}
+
+// - Plugin Publish Flow Related
+// - Handle icon upload
+const handleIcon = async(icon) => {
+  if (!icon) return null;
+  let object = null;
+  if (icon.id) {
+    object = createMediaItemInstanceWithId(icon.id);
+  } else {
+    object = await createMediaItemFromFile(icon);
+  }
+  return object;
 }
 
 
