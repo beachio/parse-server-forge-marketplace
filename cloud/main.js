@@ -987,7 +987,15 @@ Parse.Cloud.define("getPluginsList", async (request) => {
 });
 
 
-const getPluginsList = async(parseServerSiteId, developerIds, status) => {
+// Example Request
+// filter: {developer: ["p49LT4RS1u"], status: "Ready for Sale", category: 'developer'}
+const getPluginsList = async(parseServerSiteId, filter) => {
+  const { 
+    developer: developerIds, 
+    status, 
+    category: categoryId,
+    policy: policyId
+  } = filter;
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -996,8 +1004,12 @@ const getPluginsList = async(parseServerSiteId, developerIds, status) => {
     }
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
     const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const DEVELOPER_APP_SECURITY_MODEL_NAME = `ct____${siteNameId}____Developer_App_Security`;
+    const CATEGORY_MODEL_NAME = `ct____${siteNameId}____Category`;
     const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
 
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
@@ -1005,7 +1017,6 @@ const getPluginsList = async(parseServerSiteId, developerIds, status) => {
     query.include(['Data.Dashboard_Setting']);
     query.include(['Data.Dashboard_Setting.SVG_Icon']);
     query.include(['Data.Capabilities']);
-    query.include('Content');
     query.include('Content');
     query.include('Content.Key_Image');
     query.include(['Content.Screenshots']);
@@ -1019,24 +1030,48 @@ const getPluginsList = async(parseServerSiteId, developerIds, status) => {
     }
     
 
-    if (!!status) {
-      const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-      readyForSaleQuery.equalTo('Status', status);
-      query.matchesQuery('Data', readyForSaleQuery);
+    if (status) {
+      const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+      dataQuery.equalTo('Status', status);
+      query.matchesQuery('Data', dataQuery);
     }
+
+    if (categoryId) {
+      const categoryQuery = new Parse.Query(CATEGORY_MODEL_NAME);
+      categoryQuery.equalTo('t__status', 'Published');
+      categoryQuery.equalTo('objectId', categoryId);
+      const categoryObject = await categoryQuery.first({ useMasterKey: true });
+
+      const contentQuery = new Parse.Query(DEVELOPER_APP_CONTENT_MODEL_NAME);
+      contentQuery.equalTo('Categories', categoryObject);
+      query.matchesQuery('Content', contentQuery);
+    }
+
+    if (policyId) {
+      const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
+      policyQuery.equalTo('objectId', policyId);
+      const policyObject = await policyQuery.first();
+
+      const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
+      securityQuery.equalTo('Policy', policyObject);
+      query.matchesQuery('Security', securityQuery);
+    }
+
+
     
     const appObjects = await query.find({ useMasterKey: true });
 
     const lst = await Promise.all(
       appObjects.map(async(appObject) => {
         const developer = appObject.get('Developer') && appObject.get('Developer')[0] ? appObject.get('Developer')[0].id : null;
-        const developerContent = getDeveloperContentFromAppObject(appObject);
-        const developerData = getDeveloperDataFromAppObject(appObject);
+        const developerContent = getAppContentFromAppObject(appObject);
+        const developerData = getAppDataFromAppObject(appObject);
         return {
           name: appObject.get('Name'),
           id: appObject.id,
           slug: appObject.get('Slug'),
           url: appObject.get('URL'),
+          kind: appObject.get('Kind'),
           developer,
           developerContent,
           developerData,
@@ -1046,7 +1081,7 @@ const getPluginsList = async(parseServerSiteId, developerIds, status) => {
     return lst;
 
   } catch(error) {
-    console.error('inside getPluginsList', error);
+    console.error('Error in getPluginsList function', error);
     throw error;
   }
 }
@@ -1098,8 +1133,8 @@ const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
 
     const lst = await Promise.all(
       appObjects.map(async(appObject) => {       
-        const developerContent = getDeveloperContentFromAppObject(appObject);
-        const developerData = getDeveloperDataFromAppObject(appObject);
+        const developerContent = getAppContentFromAppObject(appObject);
+        const developerData = getAppDataFromAppObject(appObject);
         return {
           name: appObject.get('Name'),
           id: appObject.id,
@@ -1148,7 +1183,7 @@ const getPluginsListData = async(parseServerSiteId) => {
     const appObjects = await query.find();
 
     const lst = appObjects.map((appObject) => {
-      const appData = getDeveloperDataFromAppObject(appObject);
+      const appData = getAppDataFromAppObject(appObject);
 
       return {
         name: appObject.get('Name'),
@@ -1394,8 +1429,8 @@ const getAppListFromObjects = async (appObjects) => {
     appObjects.map(async(appObject) => {
     
       const developer = getDeveloperFromAppObject(appObject);
-      const developerContent = getDeveloperContentFromAppObject(appObject);
-      const developerData = getDeveloperDataFromAppObject(appObject);
+      const developerContent = getAppContentFromAppObject(appObject);
+      const developerData = getAppDataFromAppObject(appObject);
       // const siteInfo = await getSiteInfoFromAppObject(appObject);
       return {
         id: appObject.id,
@@ -1497,8 +1532,8 @@ const getAppDetail = async(parseServerSiteId, appSlug) => {
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
-    const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerContent = getAppContentFromAppObject(appObject);
+    const developerData = getAppDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1575,8 +1610,8 @@ const getDeveloperAppById = async(parseServerSiteId, appId) => {
     const appObject = await query.first({ useMasterKey: true });
     if (!appObject) return null;
     const developer = getDeveloperFromAppObject(appObject);
-    const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerContent = getAppContentFromAppObject(appObject);
+    const developerData = getAppDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
@@ -1617,7 +1652,7 @@ function getDeveloperFromAppObject(appObject) {
   return developer;
 }
 
-function getDeveloperContentFromAppObject(appObject) {
+function getAppContentFromAppObject(appObject) {
   let developerContent = null;
   const developerContentObject = appObject.get('Content');
   if (developerContentObject && developerContentObject.length > 0) {
@@ -1656,7 +1691,7 @@ function getDeveloperContentFromAppObject(appObject) {
 }
 
 
-function getDeveloperDataFromAppObject(appObject) {
+function getAppDataFromAppObject(appObject) {
   let developerData = null;
   const developerDataObject = appObject.get('Data');
 
@@ -2244,7 +2279,7 @@ const getAppsListByDeveloperSlug = async(parseServerSiteId, slug) => {
 
 
 
-Parse.Cloud.define('policiesList', async(request) => {
+Parse.Cloud.define('getPoliciesList', async(request) => {
   const { parseServerSiteId } = request.params;
   try {
     const policiesList = await getPoliciesList(parseServerSiteId);
@@ -2380,7 +2415,7 @@ const getPluginsListStatistics = async(parseServerSiteId) => {
     const appObjects = await query.find({ useMasterKey: true });
 
     const lst = appObjects.map(async(appObject) => {
-      const appData = getDeveloperDataFromAppObject(appObject);
+      const appData = getAppDataFromAppObject(appObject);
 
       return {
         name: appObject.get('Name'),
@@ -2525,8 +2560,8 @@ const searchAppByURL = async(parseServerSiteId, url) => {
 const getAppDetailFromObject = async(appObject) => {
   try {
     const developer = getDeveloperFromAppObject(appObject);
-    const developerContent = getDeveloperContentFromAppObject(appObject);
-    const developerData = getDeveloperDataFromAppObject(appObject);
+    const developerContent = getAppContentFromAppObject(appObject);
+    const developerData = getAppDataFromAppObject(appObject);
     const developerSecurity = getSecurityFromAppObject(appObject);
     const siteInfo = await getSiteInfoFromAppObject(appObject);
     return {
