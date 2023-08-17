@@ -975,13 +975,13 @@ const getAppsList = async(parseServerSiteId, developerIds, status) => {
 
 
 Parse.Cloud.define("getPluginsList", async (request) => {
-  const { parseServerSiteId, filter: { developer = [], status } } = request.params;
+  const { parseServerSiteId, filter } = request.params;
   try {
-    const apps = await getPluginsList(parseServerSiteId, developer, status);
+    const apps = await getPluginsList(parseServerSiteId, filter);
     
     return { status: 'success', apps };
   } catch (error) {
-    console.error('inside getPluginsList', error);
+    console.error('Error in getPluginsList', error);
     return { status: 'error', error };
   }
 });
@@ -1206,58 +1206,14 @@ const getPluginsListData = async(parseServerSiteId) => {
 Parse.Cloud.define("publishedAppsList", async (request) => {
   const { siteId, parseServerSiteId } = request.params;
   try {
-    const publishedApps = await getPublishedAppsList(siteId || parseServerSiteId);
+    const apps = await getPluginsList(siteId || parseServerSiteId, { status: 'Ready for Sale' });
     
-    return { status: 'success', apps: publishedApps };
+    return { status: 'success', apps };
   } catch (error) {
     console.error('inside publishedAppsList', error);
     return { status: 'error', error };
   }
 });
-
-const getPublishedAppsList = async(parseServerSiteId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Icon');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include(['Content.Catgories']);
-    query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.SVG_Icon']);
-    query.include(['Data.Capabilities']);
-    query.include('Data.Facilitator_Mode');
-    query.include('Data.Permissions');
-    query.include('Data.Sandbox_Permissions');
-
-
-    query.include('Developer');
-    query.include('Security');
-    
-    const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    readyForSaleQuery.equalTo('Status', 'Ready for Sale');
-    query.matchesQuery('Data', readyForSaleQuery);
-    const appObjects = await query.find({ useMasterKey: true });
-    
-    const list = await getAppListFromObjects(appObjects);
-    return list;
-
-  } catch(error) {
-    console.error('inside getPublicAppsList', error);
-    throw error;
-  }
-}
 
 
 Parse.Cloud.define("featuredAppsList", async (request) => {
@@ -2338,52 +2294,6 @@ const getPoliciesList = async(parseServerSiteId) => {
     throw error;
   }
 }
-
-Parse.Cloud.define('getPluginsListByPolicy', async(request) => {
-  try {
-    const { parseServerSiteId, policyId } = request.params;
-    const pluginsList = await getPluginsListByPolicy(parseServerSiteId, policyId);
-    return { status: 'success', pluginsList };
-  } catch (error) {
-    console.error('inside getPluginsListByPolicy', error);
-    return { status: 'error', error };
-  }
-});
-
-const getPluginsListByPolicy = async (parseServerSiteId, policyId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_SECURITY_MODEL_NAME = `ct____${siteNameId}____Developer_App_Security`;
-    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
-
-    const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
-    policyQuery.equalTo('objectId', policyId);
-    
-    const policyObject = await policyQuery.first();
-
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-
-    const securityQuery = new Parse.Query(DEVELOPER_APP_SECURITY_MODEL_NAME);
-    securityQuery.equalTo('Policy', policyObject);
-    query.matchesQuery('Security', securityQuery);
-
-    const appObjects = await query.find();
-
-    const list = await getAppListFromObjects(appObjects);
-    return list;   
-  } catch(error) {
-    console.error('inside getPluginsListByPolicy', error);
-    throw error;
-  }
-}
-
 
 
 Parse.Cloud.define("getPluginsListStatistics", async (request) => {
