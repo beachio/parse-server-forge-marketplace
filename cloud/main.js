@@ -2101,6 +2101,54 @@ const getDevelopersList = async(parseServerSiteId, verified = null) => {
   }
 }
 
+Parse.Cloud.define("getDeveloperDetail", async (request) => {
+  const { parseServerSiteId, developerId } = request.params;
+  try {
+    const developer = await getDeveloperDetail(parseServerSiteId, developerId);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.error('Error in getDeveloperDetail', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDeveloperDetail = async(parseServerSiteId, developerId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId= await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // get site name Id and generate MODEL names based on that
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('objectId', developerId);
+    developerQuery.equalTo('t__status', 'Published');
+    const developerObject = await developerQuery.first();
+    
+    if (!developerObject) return null;
+    
+    const filter = { developer: [developerId] };
+    const appsList = await getPluginsList(parseServerSiteId, filter);
+
+    return {
+      id: developerObject.id,
+      name: developerObject.get('Name'),
+      verified: developerObject.get('Verified') || false,
+      company: developerObject.get('Company') || '',
+      website: developerObject.get('Website') || '',
+      email: developerObject.get('Email') || '',
+      country: developerObject.get('Country') || '',
+      isActive: developerObject.get('IsActive') || false,
+      appsList
+    };
+
+  } catch(error) {
+    console.error('Error in getDeveloperDetail function', error);
+    throw error;
+  }
+}
 
 
 Parse.Cloud.define("getDeveloperDetailBySlug", async (request) => {
