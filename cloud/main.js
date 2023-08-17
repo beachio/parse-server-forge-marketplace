@@ -1612,6 +1612,10 @@ function getAppContentFromAppObject(appObject) {
   let developerContent = null;
   const developerContentObject = appObject.get('Content');
   if (developerContentObject && developerContentObject.length > 0) {
+    let icon = null;
+    if (developerContentObject[0].get('Icon')) {
+      icon = developerContentObject[0].get('Icon').get('file');
+    }
     let screenshots = [];
     if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
       screenshots = developerContentObject[0].get('Screenshots')
@@ -1640,6 +1644,7 @@ function getAppContentFromAppObject(appObject) {
       listing: developerContentObject[0].get('Listing') || [],
       filters: developerContentObject[0].get('Filters') || [],
       categories,
+      icon,
       screenshots
     }
   }
@@ -2546,6 +2551,7 @@ const buildApp = async (params) => {
 const findOrCreateAppContent = async(siteNameId, appContentObject, appContent) => {
   const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
   const iconObject = await handleIcon(appContent.Icon);
+  console.log('==== find or create app content', iconObject);
   const [screenshotsObjects, keyImageObject] = await handleScreenshots(appContent.Screenshots, appContent.keyImageIndex);
   const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject, Icon: iconObject };
   if (appContent.Categories) {
