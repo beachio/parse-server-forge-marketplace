@@ -1248,7 +1248,13 @@ const getAppsListMadeBy = async(parseServerSiteId, companyName) => {
     query.matchesQuery('Data', readyForSaleQuery);
 
     const madeByQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    madeByQuery.equalTo('Company', companyName);
+    const companyQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    const nameQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+
+    companyQuery.matches('Company', new RegExp(companyName, 'i')); // Case-insensitive LIKE operation on Company field
+    nameQuery.matches('Name', new RegExp(companyName, 'i')); // Case-insensitive LIKE operation on Name field
+
+    madeByQuery._orQuery([companyQuery, nameQuery]); // Combine the two queries using OR
     query.matchesQuery('Developer', madeByQuery);
 
     const appObjects = await query.find({ useMasterKey: true });
