@@ -731,6 +731,20 @@ const getSiteNameId = async(parseServerSiteId) => {
   return siteRecord.get('nameId');
 }
 
+// As we are not sure where we use legacy siteId params.
+// For new versions, we encourage you to use parseServerSiteId
+Parse.Cloud.define("getSiteNameId", async (request) => {
+  const { siteId, parseServerSiteId } = request.params;
+  try {
+    const siteNameId = await getSiteNameId(siteId || parseServerSiteId);
+    
+    return { status: 'success', siteNameId };
+  } catch (error) {
+    console.error('inside getSiteNameId', error);
+    return { status: 'error', error };
+  }
+});
+
 // Creates a Published object with the given data
 // Creates a Draft version as well and assigns the owner (the above created published object)
 const safeCreateForChisel = async (ModelName, newData) => {
@@ -803,25 +817,6 @@ const safeUpdateForChisel = async (ModelName, publishedObject, newData) => {
     }
   } catch (error) {
     console.error('Error in safeUpdateForChisel', error);
-  }
-};
-
-// Removes both the Draft and Published versions of the sourceObject
-const safeRemoveForChisel = async (ModelName, publishedObject) => {
-  try {
-    const draftObjectQuery = new Parse.Query(ModelName);
-    draftObjectQuery.equalTo('t__owner', publishedObject);
-    const draftObject = await draftObjectQuery.first();
-
-    // Destroy the Draft object, if it exists
-    if (draftObject) {
-      await draftObject.destroy({ useMasterKey: true });
-    }
-
-    // Destroy the Published object
-    await publishedObject.destroy({ useMasterKey: true });
-  } catch (error) {
-    console.error('Error in safeRemoveForChisel', error);
   }
 };
 
@@ -1127,173 +1122,20 @@ const getPluginsList = async(parseServerSiteId, filter) => {
   }
 }
 
-// As we are not sure where we use legacy siteId params.
-// For new versions, we encourage you to use parseServerSiteId
-Parse.Cloud.define("getSiteNameId", async (request) => {
-  const { siteId, parseServerSiteId } = request.params;
-  try {
-    const siteNameId = await getSiteNameId(siteId || parseServerSiteId);
-    
-    return { status: 'success', siteNameId };
-  } catch (error) {
-    console.error('inside getSiteNameId', error);
-    return { status: 'error', error };
-  }
-});
-
-// Used in forge-client, plugin install params update drawer
-Parse.Cloud.define("updateDeveloperAppData", async (request) => {
-  try {
-    const appData = await updateDeveloperAppData(request.params);
-
-    return { status: 'success', appData };
-  } catch (error) {
-    console.error('inside updateDeveloperAppData', error);
-    return { status: 'error', error };
-  }
-});
-
-const updateDeveloperAppData = async(params) => {
-  const { parseServerSiteId, appDataId, installParams, status } = params;
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-    
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const query = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    query.equalTo('objectId', appDataId);
-    const appDataObject = await query.first();
-
-    let newAppData = {
-      Status: status
-    };
-    if (installParams) newAppData['InstallParams'] = installParams;
-
-    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
-    
-    return appDataObject;
-  } catch(error) {
-    console.error('Error in updateDeveloperAppData function', error);
-  }
-}
-
-// Used in forge-client, publisher dashboard page
-Parse.Cloud.define("getTopPluginsList", async (request) => {
-  const { parseServerSiteId, limit = 3, sortBy = 'installsCount' } = request.params;
-  try {
-    const apps = await getTopPluginsList( parseServerSiteId, sortBy, limit );
-
-    return { status: 'success', apps };
-  } catch (error) {
-    console.error('inside getTopPluginsList', error);
-    return { status: 'error', error };
-  }
-});
 
 
-const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-    
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    dataQuery.equalTo('t__status', 'Published');
-    if (sortBy === 'installsCount') {
-      dataQuery.descending('Installs_Count');
-    } else if (sortBy === 'rating') {
-      dataQuery.descending('Rating');
-    }
-
-    dataQuery.limit(limit);
-    const dataObjects = await dataQuery.find();
 
 
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Key_Image');
-    query.containedIn('Data', dataObjects);
-    
-    const appObjects = await query.find({ useMasterKey: true });
-
-    const lst = await Promise.all(
-      appObjects.map(async(appObject) => {       
-        const developerContent = getAppContentFromAppObject(appObject);
-        const developerData = getAppDataFromAppObject(appObject);
-        return {
-          name: appObject.get('Name'),
-          id: appObject.id,
-          slug: appObject.get('Slug'),
-          url: appObject.get('URL'),
-          developerContent,
-          developerData,
-        };
-      })
-    );
-    return lst;
-
-  } catch(error) {
-    console.error('inside getTopPluginsList', error);
-    throw error;
-  }
-}
-
-// Used in forge-client, publisher dashboard to provide plugin statistics(by status)
-Parse.Cloud.define("getPluginsListData", async (request) => {
-  const { parseServerSiteId } = request.params;
-  try {
-    const apps = await getPluginsListData(parseServerSiteId);
-
-    return { status: 'success', apps };
-  } catch (error) {
-    console.error('inside getPluginsListData', error);
-    return { status: 'error', error };
-  }
-});
 
 
-const getPluginsListData = async(parseServerSiteId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
 
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
 
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    const appObjects = await query.find();
 
-    const lst = appObjects.map((appObject) => {
-      const appData = getAppDataFromAppObject(appObject);
 
-      return {
-        name: appObject.get('Name'),
-        id: appObject.id,
-        slug: appObject.get('Slug'),
-        url: appObject.get('URL'),
-        appData,
-      };
-    });
-    return lst;
 
-  } catch(error) {
-    console.error('inside getPluginsListData', error);
-    throw error;
-  }
-}
+
+
+
 
 
 // Used in forge-publisher site
@@ -1605,6 +1447,53 @@ const getAppDetail = async(parseServerSiteId, appSlug) => {
   }
 }
 
+// Used in forge-publisher
+Parse.Cloud.define("getPublisherSettings", async (request) => {
+  const { parseServerSiteId } = request.params;
+  try {
+    const publisherSetting = await getPublisherSettings(parseServerSiteId);
+    
+    
+    return { status: 'success', publisherSetting };
+  } catch (error) {
+    console.error('inside getPublisherSettings', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPublisherSettings = async(parseServerSiteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const PUBLISHER_SETTING_MODEL_NAME = `ct____${siteNameId}____Publisher_Settings`;
+
+    const query = new Parse.Query(PUBLISHER_SETTING_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Logo');
+    
+    const publisherSettingObject = await query.first({ useMasterKey: true });
+    if (!publisherSettingObject) return null;
+    return {
+      name: publisherSettingObject.get('Name'),
+      logo: publisherSettingObject.get('Logo') ? publisherSettingObject.get('Logo').get('file')._url : '',
+      primaryColor: publisherSettingObject.get('Primary_Colour'),
+      secondaryColor: publisherSettingObject.get('Secondary_Colour'),
+      appsListBanner: publisherSettingObject.get('Apps_List_Banner') ? publisherSettingObject.get('Logo').get('file')._url : ''
+    };
+  } catch(error) {
+    console.error('inside getPublisherSettings function', error);
+    throw error;
+  }
+}
+
+const getMuralRedirectURI = (devMode) => {
+  return devMode ? process.env.DEV_MURAL_REDIRECT_URI : process.env.MURAL_REDIRECT_URI;
+}
+
 // Used in forge-publisher, for auth
 Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   const { siteId, parseServerSiteId, userId } = request.params;
@@ -1764,53 +1653,6 @@ Parse.Cloud.define("refresh", async (request) => {
   }
 });
 
-// Used in forge-publisher
-Parse.Cloud.define("getPublisherSettings", async (request) => {
-  const { parseServerSiteId } = request.params;
-  try {
-    const publisherSetting = await getPublisherSettings(parseServerSiteId);
-    
-    
-    return { status: 'success', publisherSetting };
-  } catch (error) {
-    console.error('inside getPublisherSettings', error);
-    return { status: 'error', error };
-  }
-});
-
-const getPublisherSettings = async(parseServerSiteId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const PUBLISHER_SETTING_MODEL_NAME = `ct____${siteNameId}____Publisher_Settings`;
-
-    const query = new Parse.Query(PUBLISHER_SETTING_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Logo');
-    
-    const publisherSettingObject = await query.first({ useMasterKey: true });
-    if (!publisherSettingObject) return null;
-    return {
-      name: publisherSettingObject.get('Name'),
-      logo: publisherSettingObject.get('Logo') ? publisherSettingObject.get('Logo').get('file')._url : '',
-      primaryColor: publisherSettingObject.get('Primary_Colour'),
-      secondaryColor: publisherSettingObject.get('Secondary_Colour'),
-      appsListBanner: publisherSettingObject.get('Apps_List_Banner') ? publisherSettingObject.get('Logo').get('file')._url : ''
-    };
-  } catch(error) {
-    console.error('inside getPublisherSettings function', error);
-    throw error;
-  }
-}
-
-const getMuralRedirectURI = (devMode) => {
-  return devMode ? process.env.DEV_MURAL_REDIRECT_URI : process.env.MURAL_REDIRECT_URI;
-}
-
 // Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define('linkWith', async(request) => {
   const { authData, email } = request.params;
@@ -1904,319 +1746,20 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
   }
 }
 
-// Used in forge-client
-Parse.Cloud.define('getDevelopersList', async(request) => {
-  try {
-    const { parseServerSiteId, verified } = request.params;
-    const developersList = await getDevelopersList(parseServerSiteId, verified);
-    return { status: 'success', developersList };
-  } catch (error) {
-    console.error('Error in getDevelopersList', error);
-    return { status: 'error', error };
-  }
-});
 
 
-const getDevelopersList = async(parseServerSiteId, verified = null) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    // Model related data preparation
-    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
-    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    developerQuery.equalTo('t__status', 'Published');
-    if (verified !== null) {
-      developerQuery.equalTo('Verified', verified);
-    }
-    const results = await developerQuery.find();
-
-    const list = results.map(developer => (
-      {
-        id: developer.id,
-        slug: developer.get('Slug') || '',
-        name: developer.get('Name'),
-        verified: developer.get('Verified') || false,
-        company: developer.get('Company') || '',
-        country: developer.get('Country') || '',
-        website: developer.get('Website') || '',
-        email: developer.get('Email') || '',
-        isActive: developer.get('IsActive') || false,
-        updatedAt: developer.get('updatedAt')
-      }
-    ));
-    return list;
-
-  } catch(error) {
-    console.error("inside getDevelopersList function", error);
-    throw error;
-  }
-}
-// used in forge-client
-Parse.Cloud.define("getDeveloperDetail", async (request) => {
-  const { parseServerSiteId, developerId } = request.params;
-  try {
-    const developer = await getDeveloperDetail(parseServerSiteId, developerId);
-    return { status: 'success', developer };
-  } catch (error) {
-    console.error('Error in getDeveloperDetail', error);
-    return { status: 'error', error };
-  }
-});
-
-const getDeveloperDetail = async(parseServerSiteId, developerId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId= await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    // get site name Id and generate MODEL names based on that
-    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
-    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-    developerQuery.equalTo('objectId', developerId);
-    developerQuery.equalTo('t__status', 'Published');
-    const developerObject = await developerQuery.first();
-    
-    if (!developerObject) return null;
-    
-    const filter = { developer: [developerId] };
-    const appsList = await getPluginsList(parseServerSiteId, filter);
-
-    return {
-      id: developerObject.id,
-      name: developerObject.get('Name'),
-      verified: developerObject.get('Verified') || false,
-      company: developerObject.get('Company') || '',
-      website: developerObject.get('Website') || '',
-      email: developerObject.get('Email') || '',
-      country: developerObject.get('Country') || '',
-      isActive: developerObject.get('IsActive') || false,
-      appsList
-    };
-
-  } catch(error) {
-    console.error('Error in getDeveloperDetail function', error);
-    throw error;
-  }
-}
-
-// Used in forge-client, publisher dashboard / policies page
-Parse.Cloud.define('getPoliciesList', async(request) => {
-  const { parseServerSiteId } = request.params;
-  try {
-    const policiesList = await getPoliciesList(parseServerSiteId);
-    return { status: 'success', policiesList };
-  } catch (error) {
-    console.error('inside policiesList', error);
-    return { status: 'error', error };
-  }
-});
-
-const getPoliciesList = async(parseServerSiteId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    // Model related data preparation
-    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
-    const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
-    policyQuery.equalTo('t__status', 'Published');
-    const results = await policyQuery.find();
-
-    const list = results.map(policy => (
-      {
-        id: policy.id,
-        name: policy.get('Policy_Name') || '',
-        updatedAt: policy.get('updatedAt') || '',
-        EvalSafe_Pass_Max: policy.get('Eval_Safe_Pass_Max'),
-        EvalSafe_Pass_Min: policy.get('EvalSafe_Pass_Min'),
-        EvalSafe_Warning_Max: policy.get('EvalSafe_Warning_Max'),
-        EvalSafe_Warning_Min: policy.get('EvalSafe_Warning_Min'),
-        EvalSafe_Fail_Max: policy.get('EvalSafe_Fail_Max'),
-        EvalSafe_Fail_Min: policy.get('EvalSafe_Fail_Min'),
-        RequireSSL: policy.get('RequireSSL'),
-        RequireForceSSL: policy.get('RequireForceSSL'),
-        AllowExternalNetworkRequest: policy.get('AllowExternalNetworkRequest'),
-        ExternalRequestAllowList: policy.get('ExternalRequestAllowList'),
-        ExternalRequestsBlockList: policy.get('ExternalRequestsBlockList'),
-        AllowInsecureNetworkURLs: policy.get('AllowInsecureNetworkURLs'),
-        Bandwidth_Day_Usage_Limit: policy.get('Bandwidth_Day_Usage_Limit'),
-        BandWidth_Week_Usage_Limit: policy.get('BandWidth_Week_Usage_Limit'),
-        Forms_Allowed: policy.get('Forms_Allowed'),
-        Forms_Limit: policy.get('Forms_Limit'),
-        Allow_Collaborators: policy.get('Allow_Collaborators'),
-        Collaborator_Limit: policy.get('Collaborator_Limit'),
-        Media_Microphone_Allowed: policy.get('Media_Microphone_Allowed'),
-        Media_Camera_Allowed: policy.get('Media_Camera_Allowed')
-      }
-      ));
-    return list;
-
-  } catch(error) {
-    console.error("inside getPoliciesList function", error);
-    throw error;
-  }
-}
-
-// Called in forge-client
-Parse.Cloud.define("getPluginDetail", async (request) => {
-  const { parseServerSiteId, appSlug } = request.params;
-  try {
-    const appDetail = await getPluginDetailBySlug(parseServerSiteId, appSlug);
-    
-    return { status: 'success', appDetail };
-  } catch (error) {
-    console.error('Error in getPluginDetail', error);
-    return { status: 'error', error };
-  }
-});
-
-const getPluginDetailBySlug = async(parseServerSiteId, appSlug) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.equalTo('Slug', appSlug)
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Icon');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include(['Content.Categories']);
-    query.include('Developer');
-    query.include('Security');
-    query.include('Security.Policy');
-    
-    const appObject = await query.first({ useMasterKey: true });
-    if (!appObject) return null;
-    const appDetail = await getAppDetailFromObject(appObject);
-    return appDetail;
-  } catch(error) {
-    console.error('Error in getPluginDetailBySlug function', error);
-    throw error;
-  }
-}
-
-// Called in forge-client
-Parse.Cloud.define('getLatestSDK', async(request) => {
-  const { parseServerSiteId } = request.params;
-  try {
-    const data = await getLatestSDK(parseServerSiteId);
-    return { status: 'success', data };
-  } catch (error) {
-    console.error('inside getLatestSDK', error);
-    return { status: 'error', error };
-  }
-});
-
-const getLatestSDK = async (parseServerSiteId) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const SDK_MODEL_NAME = `ct____${siteNameId}____SDK`;
-
-    const sdkQuery = new Parse.Query(SDK_MODEL_NAME);
-    sdkQuery.equalTo('t__status', 'Published');
-    sdkQuery.descending('updatedAt');
-    const sdkObject = await sdkQuery.first();
-    if (sdkObject)
-      return {
-        id: sdkObject.id,
-        version: sdkObject.get('Version'),
-        src: sdkObject.get('File')._url,
-      }
-    return null;
-  } catch(error) {
-    console.error('inside getLatestSDK', error);
-    throw error;
-  }
-}
-
-// Called in forge-client, Plugin Publish Flow
-// To check if we have developerApp linked with the current forge site, search By URL
-Parse.Cloud.define("searchAppByURL", async (request) => {
-  try {
-    const { parseServerSiteId, url } = request.params;
-    const appDetail = await searchAppByURL(parseServerSiteId, url);
-    return { status: 'success', appDetail };
-  } catch (error) {
-    console.error('inside searchAppByURL', error);
-    return { status: 'error', error };
-  }
-});
 
 
-const searchAppByURL = async(parseServerSiteId, url) => {
-  try {
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.contains('URL', url);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Icon');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include(['Content.Catgories']);
-    // query.include(['Data.Capabilities']);
-    query.include('Developer');
 
-    const appObject = await query.first({ useMasterKey: true });
-    if (!appObject) return DEVELOPER_APP_MODEL_NAME;
-    const appDetail = await getAppDetailFromObject(appObject);
-    return appDetail;
-  } catch(error) {
-    console.error('inside searchAppByURL', error);
-    return error;
-  }
-}
 
-const getAppDetailFromObject = async(appObject) => {
-  try {
-    const developer = getDeveloperFromAppObject(appObject);
-    const developerContent = getAppContentFromAppObject(appObject);
-    const developerData = getAppDataFromAppObject(appObject);
-    const developerSecurity = getSecurityFromAppObject(appObject);
-    const siteInfo = await getSiteInfoFromAppObject(appObject);
-    return {
-      id: appObject.id,
-      name: appObject.get('Name'),
-      slug: appObject.get('Slug'),
-      url: appObject.get('URL'),
-      siteId: appObject.get('SiteId'),
-      kind: appObject.get('Kind'),
-      userId: appObject.get('UserId'),
-      installParams: appObject.get('InstallParams'),
-      developer,
-      developerContent,
-      developerData,
-      developerSecurity,
-      siteInfo,
-    }
-  } catch(error) {
-    console.error('getAppDetailFromObject', error);
-  }
-}
+
+
+
+
+
+
+
+
 
 
 
@@ -2400,6 +1943,437 @@ const buildCategoryObjectsFromIds = async(parseServerSiteId, categoryIds) => {
   })
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Called in forge-client
+Parse.Cloud.define("getPluginDetail", async (request) => {
+  const { parseServerSiteId, appSlug } = request.params;
+  try {
+    const appDetail = await getPluginDetailBySlug(parseServerSiteId, appSlug);
+    
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('Error in getPluginDetail', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPluginDetailBySlug = async(parseServerSiteId, appSlug) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('Slug', appSlug)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Icon');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Categories']);
+    query.include('Developer');
+    query.include('Security');
+    query.include('Security.Policy');
+    
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const appDetail = await getAppDetailFromObject(appObject);
+    return appDetail;
+  } catch(error) {
+    console.error('Error in getPluginDetailBySlug function', error);
+    throw error;
+  }
+}
+
+
+// Called in forge-client, Plugin Publish Flow
+// To check if we have developerApp linked with the current forge site, search By URL
+Parse.Cloud.define("searchAppByURL", async (request) => {
+  try {
+    const { parseServerSiteId, url } = request.params;
+    const appDetail = await searchAppByURL(parseServerSiteId, url);
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('inside searchAppByURL', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const searchAppByURL = async(parseServerSiteId, url) => {
+  try {
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.contains('URL', url);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Icon');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Catgories']);
+    // query.include(['Data.Capabilities']);
+    query.include('Developer');
+
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return DEVELOPER_APP_MODEL_NAME;
+    const appDetail = await getAppDetailFromObject(appObject);
+    return appDetail;
+  } catch(error) {
+    console.error('inside searchAppByURL', error);
+    return error;
+  }
+}
+
+const getAppDetailFromObject = async(appObject) => {
+  try {
+    const developer = getDeveloperFromAppObject(appObject);
+    const developerContent = getAppContentFromAppObject(appObject);
+    const developerData = getAppDataFromAppObject(appObject);
+    const developerSecurity = getSecurityFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    return {
+      id: appObject.id,
+      name: appObject.get('Name'),
+      slug: appObject.get('Slug'),
+      url: appObject.get('URL'),
+      siteId: appObject.get('SiteId'),
+      kind: appObject.get('Kind'),
+      userId: appObject.get('UserId'),
+      installParams: appObject.get('InstallParams'),
+      developer,
+      developerContent,
+      developerData,
+      developerSecurity,
+      siteInfo,
+    }
+  } catch(error) {
+    console.error('getAppDetailFromObject', error);
+  }
+}
+
+
+
+// Called in forge-client, site apps and plugin publish flow
+Parse.Cloud.define("findDeveloperByEmail", async (request) => {
+  try {
+    const { parseServerSiteId, email } = request.params;
+    const developer = await findDeveloperByEmail(parseServerSiteId, email);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.error('inside findDeveloperByEmail', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const findDeveloperByEmail = async(parseServerSiteId, email) => {
+  try {
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const query = new Parse.Query(DEVELOPER_MODEL_NAME);
+    query.equalTo('Email', email);
+    query.equalTo('t__status', 'Published');
+    let developerObject = await query.first();
+    if (developerObject)
+      return {
+        id: developerObject.id,
+        name: developerObject.get('Name'),
+        verified: developerObject.get('Verified') || false,
+        company: developerObject.get('Company') || '',
+        country: developerObject.get('Country') || '',
+        website: developerObject.get('Website') || '',
+        email: developerObject.get('Email') || '',
+        isActive: developerObject.get('IsActive') || false,
+      }
+  } catch(error) {
+    console.error('Error in findDeveloperByEmail', error);
+  }
+  return null;
+}
+
+
+// Used in forge-client, plugin install params update drawer
+Parse.Cloud.define("updateDeveloperAppData", async (request) => {
+  try {
+    const appData = await updateDeveloperAppData(request.params);
+
+    return { status: 'success', appData };
+  } catch (error) {
+    console.error('inside updateDeveloperAppData', error);
+    return { status: 'error', error };
+  }
+});
+
+const updateDeveloperAppData = async(params) => {
+  const { parseServerSiteId, appDataId, installParams, status } = params;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const query = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    query.equalTo('objectId', appDataId);
+    const appDataObject = await query.first();
+
+    let newAppData = {
+      Status: status
+    };
+    if (installParams) newAppData['InstallParams'] = installParams;
+
+    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
+    
+    return appDataObject;
+  } catch(error) {
+    console.error('Error in updateDeveloperAppData function', error);
+  }
+}
+
+
+
+// Used in forge-client, publisher dashboard page
+Parse.Cloud.define("getTopPluginsList", async (request) => {
+  const { parseServerSiteId, limit = 3, sortBy = 'installsCount' } = request.params;
+  try {
+    const apps = await getTopPluginsList( parseServerSiteId, sortBy, limit );
+
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getTopPluginsList', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('t__status', 'Published');
+    if (sortBy === 'installsCount') {
+      dataQuery.descending('Installs_Count');
+    } else if (sortBy === 'rating') {
+      dataQuery.descending('Rating');
+    }
+
+    dataQuery.limit(limit);
+    const dataObjects = await dataQuery.find();
+
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.containedIn('Data', dataObjects);
+    
+    const appObjects = await query.find({ useMasterKey: true });
+
+    const lst = await Promise.all(
+      appObjects.map(async(appObject) => {       
+        const developerContent = getAppContentFromAppObject(appObject);
+        const developerData = getAppDataFromAppObject(appObject);
+        return {
+          name: appObject.get('Name'),
+          id: appObject.id,
+          slug: appObject.get('Slug'),
+          url: appObject.get('URL'),
+          developerContent,
+          developerData,
+        };
+      })
+    );
+    return lst;
+
+  } catch(error) {
+    console.error('inside getTopPluginsList', error);
+    throw error;
+  }
+}
+
+// Used in forge-client, publisher dashboard to provide plugin statistics(by status)
+Parse.Cloud.define("getPluginsListData", async (request) => {
+  const { parseServerSiteId } = request.params;
+  try {
+    const apps = await getPluginsListData(parseServerSiteId);
+
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getPluginsListData', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getPluginsListData = async(parseServerSiteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    const appObjects = await query.find();
+
+    const lst = appObjects.map((appObject) => {
+      const appData = getAppDataFromAppObject(appObject);
+
+      return {
+        name: appObject.get('Name'),
+        id: appObject.id,
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        appData,
+      };
+    });
+    return lst;
+
+  } catch(error) {
+    console.error('inside getPluginsListData', error);
+    throw error;
+  }
+}
+
+
+
+// Used in forge-client
+Parse.Cloud.define('getDevelopersList', async(request) => {
+  try {
+    const { parseServerSiteId, verified } = request.params;
+    const developersList = await getDevelopersList(parseServerSiteId, verified);
+    return { status: 'success', developersList };
+  } catch (error) {
+    console.error('Error in getDevelopersList', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getDevelopersList = async(parseServerSiteId, verified = null) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // Model related data preparation
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('t__status', 'Published');
+    if (verified !== null) {
+      developerQuery.equalTo('Verified', verified);
+    }
+    const results = await developerQuery.find();
+
+    const list = results.map(developer => (
+      {
+        id: developer.id,
+        slug: developer.get('Slug') || '',
+        name: developer.get('Name'),
+        verified: developer.get('Verified') || false,
+        company: developer.get('Company') || '',
+        country: developer.get('Country') || '',
+        website: developer.get('Website') || '',
+        email: developer.get('Email') || '',
+        isActive: developer.get('IsActive') || false,
+        updatedAt: developer.get('updatedAt')
+      }
+    ));
+    return list;
+
+  } catch(error) {
+    console.error("inside getDevelopersList function", error);
+    throw error;
+  }
+}
+// used in forge-client
+Parse.Cloud.define("getDeveloperDetail", async (request) => {
+  const { parseServerSiteId, developerId } = request.params;
+  try {
+    const developer = await getDeveloperDetail(parseServerSiteId, developerId);
+    return { status: 'success', developer };
+  } catch (error) {
+    console.error('Error in getDeveloperDetail', error);
+    return { status: 'error', error };
+  }
+});
+
+const getDeveloperDetail = async(parseServerSiteId, developerId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId= await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // get site name Id and generate MODEL names based on that
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const developerQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    developerQuery.equalTo('objectId', developerId);
+    developerQuery.equalTo('t__status', 'Published');
+    const developerObject = await developerQuery.first();
+    
+    if (!developerObject) return null;
+    
+    const filter = { developer: [developerId] };
+    const appsList = await getPluginsList(parseServerSiteId, filter);
+
+    return {
+      id: developerObject.id,
+      name: developerObject.get('Name'),
+      verified: developerObject.get('Verified') || false,
+      company: developerObject.get('Company') || '',
+      website: developerObject.get('Website') || '',
+      email: developerObject.get('Email') || '',
+      country: developerObject.get('Country') || '',
+      isActive: developerObject.get('IsActive') || false,
+      appsList
+    };
+
+  } catch(error) {
+    console.error('Error in getDeveloperDetail function', error);
+    throw error;
+  }
+}
+
+
 // Called in forge-client
 Parse.Cloud.define("getCategories", async (request) => {
   const { parseServerSiteId } = request.params;
@@ -2468,42 +2442,104 @@ const getCapabilities = async(parseServerSiteId) => {
   }
 }
 
-// Called in forge-client, site apps and plugin publish flow
-Parse.Cloud.define("findDeveloperByEmail", async (request) => {
+// Used in forge-client, publisher dashboard / policies page
+Parse.Cloud.define('getPoliciesList', async(request) => {
+  const { parseServerSiteId } = request.params;
   try {
-    const { parseServerSiteId, email } = request.params;
-    const developer = await findDeveloperByEmail(parseServerSiteId, email);
-    return { status: 'success', developer };
+    const policiesList = await getPoliciesList(parseServerSiteId);
+    return { status: 'success', policiesList };
   } catch (error) {
-    console.error('inside findDeveloperByEmail', error);
+    console.error('inside policiesList', error);
     return { status: 'error', error };
   }
 });
 
-
-const findDeveloperByEmail = async(parseServerSiteId, email) => {
+const getPoliciesList = async(parseServerSiteId) => {
   try {
+    // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
-    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
-    const query = new Parse.Query(DEVELOPER_MODEL_NAME);
-    query.equalTo('Email', email);
-    query.equalTo('t__status', 'Published');
-    let developerObject = await query.first();
-    if (developerObject)
-      return {
-        id: developerObject.id,
-        name: developerObject.get('Name'),
-        verified: developerObject.get('Verified') || false,
-        company: developerObject.get('Company') || '',
-        country: developerObject.get('Country') || '',
-        website: developerObject.get('Website') || '',
-        email: developerObject.get('Email') || '',
-        isActive: developerObject.get('IsActive') || false,
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    // Model related data preparation
+    const POLICY_MODEL_NAME = `ct____${siteNameId}____Policy`;
+    const policyQuery = new Parse.Query(POLICY_MODEL_NAME);
+    policyQuery.equalTo('t__status', 'Published');
+    const results = await policyQuery.find();
+
+    const list = results.map(policy => (
+      {
+        id: policy.id,
+        name: policy.get('Policy_Name') || '',
+        updatedAt: policy.get('updatedAt') || '',
+        EvalSafe_Pass_Max: policy.get('Eval_Safe_Pass_Max'),
+        EvalSafe_Pass_Min: policy.get('EvalSafe_Pass_Min'),
+        EvalSafe_Warning_Max: policy.get('EvalSafe_Warning_Max'),
+        EvalSafe_Warning_Min: policy.get('EvalSafe_Warning_Min'),
+        EvalSafe_Fail_Max: policy.get('EvalSafe_Fail_Max'),
+        EvalSafe_Fail_Min: policy.get('EvalSafe_Fail_Min'),
+        RequireSSL: policy.get('RequireSSL'),
+        RequireForceSSL: policy.get('RequireForceSSL'),
+        AllowExternalNetworkRequest: policy.get('AllowExternalNetworkRequest'),
+        ExternalRequestAllowList: policy.get('ExternalRequestAllowList'),
+        ExternalRequestsBlockList: policy.get('ExternalRequestsBlockList'),
+        AllowInsecureNetworkURLs: policy.get('AllowInsecureNetworkURLs'),
+        Bandwidth_Day_Usage_Limit: policy.get('Bandwidth_Day_Usage_Limit'),
+        BandWidth_Week_Usage_Limit: policy.get('BandWidth_Week_Usage_Limit'),
+        Forms_Allowed: policy.get('Forms_Allowed'),
+        Forms_Limit: policy.get('Forms_Limit'),
+        Allow_Collaborators: policy.get('Allow_Collaborators'),
+        Collaborator_Limit: policy.get('Collaborator_Limit'),
+        Media_Microphone_Allowed: policy.get('Media_Microphone_Allowed'),
+        Media_Camera_Allowed: policy.get('Media_Camera_Allowed')
       }
+      ));
+    return list;
+
   } catch(error) {
-    console.error('Error in findDeveloperByEmail', error);
+    console.error("inside getPoliciesList function", error);
+    throw error;
   }
-  return null;
+}
+
+// Called in forge-client
+Parse.Cloud.define('getLatestSDK', async(request) => {
+  const { parseServerSiteId } = request.params;
+  try {
+    const data = await getLatestSDK(parseServerSiteId);
+    return { status: 'success', data };
+  } catch (error) {
+    console.error('inside getLatestSDK', error);
+    return { status: 'error', error };
+  }
+});
+
+const getLatestSDK = async (parseServerSiteId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const SDK_MODEL_NAME = `ct____${siteNameId}____SDK`;
+
+    const sdkQuery = new Parse.Query(SDK_MODEL_NAME);
+    sdkQuery.equalTo('t__status', 'Published');
+    sdkQuery.descending('updatedAt');
+    const sdkObject = await sdkQuery.first();
+    if (sdkObject)
+      return {
+        id: sdkObject.id,
+        version: sdkObject.get('Version'),
+        src: sdkObject.get('File')._url,
+      }
+    return null;
+  } catch(error) {
+    console.error('inside getLatestSDK', error);
+    throw error;
+  }
 }
 
 // Called in forge-client
