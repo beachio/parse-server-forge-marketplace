@@ -2066,7 +2066,7 @@ const getPoliciesList = async(parseServerSiteId) => {
   }
 }
 
-
+// Called in forge-client
 Parse.Cloud.define("getPluginDetail", async (request) => {
   const { parseServerSiteId, appSlug } = request.params;
   try {
@@ -2112,7 +2112,7 @@ const getPluginDetailBySlug = async(parseServerSiteId, appSlug) => {
   }
 }
 
-
+// Called in forge-client
 Parse.Cloud.define('getLatestSDK', async(request) => {
   const { parseServerSiteId } = request.params;
   try {
@@ -2151,7 +2151,7 @@ const getLatestSDK = async (parseServerSiteId) => {
   }
 }
 
-// Called from Plugin Publish Flow
+// Called in forge-client, Plugin Publish Flow
 // To check if we have developerApp linked with the current forge site, search By URL
 Parse.Cloud.define("searchAppByURL", async (request) => {
   try {
@@ -2220,7 +2220,7 @@ const getAppDetailFromObject = async(appObject) => {
 
 
 
-// Called from Plugin Publish Flow
+// Called in forge-client, from Plugin Publish Flow
 Parse.Cloud.define("buildApp", async (request) => {
   try {
     const result = await buildApp(request.params);
@@ -2254,8 +2254,6 @@ const buildApp = async (params) => {
     appSecurityObject = (appObject.get('Security') && appObject.get('Security')[0]) ? appObject.get('Security')[0] : null;
     appSecurityObject = await findOrCreateAppSecurity(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecurityObject, appSecurity);
     
-    console.log('I get this developer------------------', developer, developerObject);
-    console.log('After this developer------------------', appObject, DEVELOPER_APP_MODEL_NAME);
     // Update appObject with the sorted out Content, Data, Developer object
     await safeUpdateForChisel(DEVELOPER_APP_MODEL_NAME, appObject, {
       Content: appContentObject ? [appContentObject] : [], 
@@ -2338,8 +2336,9 @@ const findOrCreateAppSecurity = async(DEVELOPER_APP_SECURITY_MODEL_NAME, appSecu
   }
 }
 
+// Called in forge-client
 // - Plugin Publish Flow Related
-// - Handle icon upload
+// - Handle icon upload, icon will be updated onto appContent, but not here
 const handleIcon = async(icon) => {
   if (!icon) return null;
   let object = null;
@@ -2401,7 +2400,7 @@ const buildCategoryObjectsFromIds = async(parseServerSiteId, categoryIds) => {
   })
 }
 
-// Get Categories list
+// Called in forge-client
 Parse.Cloud.define("getCategories", async (request) => {
   const { parseServerSiteId } = request.params;
   try {
@@ -2435,7 +2434,7 @@ const getCategories = async(parseServerSiteId) => {
 }
 
 
-// Get Categories list
+// Called in forge-client, plugin publish flow / capabilities dropdown
 Parse.Cloud.define("getCapabilities", async (request) => {
   const { parseServerSiteId } = request.params;
   try {
@@ -2469,7 +2468,7 @@ const getCapabilities = async(parseServerSiteId) => {
   }
 }
 
-// Get Categories list
+// Called in forge-client, site apps and plugin publish flow
 Parse.Cloud.define("findDeveloperByEmail", async (request) => {
   try {
     const { parseServerSiteId, email } = request.params;
@@ -2507,7 +2506,7 @@ const findDeveloperByEmail = async(parseServerSiteId, email) => {
   return null;
 }
 
-
+// Called in forge-client
 Parse.Cloud.define("uploadFile", async (request) => {
   try {
     const { fileName, base64 } = request.params;
@@ -2520,7 +2519,7 @@ Parse.Cloud.define("uploadFile", async (request) => {
 
 });
 
-
+// Called in forge-client
 Parse.Cloud.define("destroyFile", async (request) => {
   try {
     const { file } = request.params;
@@ -2531,6 +2530,7 @@ Parse.Cloud.define("destroyFile", async (request) => {
   }
 });
 
+// Called in forge-client, EMPTY for now
 Parse.Cloud.define("removeApp", async (request) => {
   try {
     const { parseServerSiteId, appId } = request.params;
@@ -2550,6 +2550,7 @@ const removeApp = async(appId) => {
   }
 }
 
+// Called in forge-client, publisher dashboard
 Parse.Cloud.define("removeDeveloper", async (request) => {
   try {
     const { parseServerSiteId, developerId } = request.params;
