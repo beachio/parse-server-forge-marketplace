@@ -722,71 +722,108 @@ Parse.Cloud.define("checkPassword", request => {
   return Parse.User.logIn(username, password);
 });
 
-// Update both draft and published version
-const safeUpdateForChisel = async (ModelName, sourceObject, newData) => {
-  try {
-    Object.keys(newData).forEach((key) => sourceObject.set(key, newData[key]));
-    await sourceObject.save();
-    const query = new Parse.Query(ModelName);
-    query.equalTo('t__owner', sourceObject);
-    const draftObject = await query.first();
-    if (draftObject) {
-      Object.keys(newData)
-        // .filter((key) => newData[key])
-        .forEach((key) => draftObject.set(key, newData[key]));
-      await draftObject.save();
-    }
-  } catch (error) {
-    console.log('error in safeUpdateForChisel', error);
-    console.log('Params == ModelName', ModelName);
-    console.log('Params == source object', sourceObject);
-    console.log('Params == newData', newData);
-  }
+// Get Site nameId to generate Model names
+const getSiteNameId = async(parseServerSiteId) => {
+  const siteQuery = new Parse.Query('Site');
+  if (parseServerSiteId) siteQuery.equalTo('objectId', parseServerSiteId);
+  const siteRecord = await siteQuery.first({useMasterKey: true});
+  if (!siteRecord || !siteRecord.get('nameId')) return null;
+  return siteRecord.get('nameId');
 }
 
-// Create Draft version as well and assign owner
+// Creates a Published object with the given data
+// Creates a Draft version as well and assigns the owner (the above created published object)
 const safeCreateForChisel = async (ModelName, newData) => {
   try {
-    const tModelObject = await getModelObject(ModelName);   
-    // This sampleModelObject is for getting ACL and t__color, probably won't be that necessary, though
+    const tModelObject = await getModelObject(ModelName);
+
+    // This sampleInstance is for getting ACL and t__color, probably won't be that necessary, though
     const sampleInstanceQuery = new Parse.Query(ModelName);
     const sampleInstance = await sampleInstanceQuery.first();
 
     const ModelModel = Parse.Object.extend(ModelName);
-
-    const object = new ModelModel();
+    const publishedObject = new ModelModel();
     const draftObject = new ModelModel();
+
+    // Set properties for both Published and Draft objects from the newData
     Object.keys(newData)
-      .filter((key) => newData[key])
+      .filter((key) => newData[key]) // Filter out any falsy values in newData
       .forEach((key) => {
-        object.set(key, newData[key])
-        draftObject.set(key, newData[key])
+        publishedObject.set(key, newData[key]);
+        draftObject.set(key, newData[key]);
       });
-    object.set('t__status', 'Published');
-    object.set('t__model', tModelObject);
-    await object.save();
-    
+
+    // Set the status and model for both objects
+    publishedObject.set('t__status', 'Published');
+    publishedObject.set('t__model', tModelObject);
     draftObject.set('t__status', 'Draft');
     draftObject.set('t__model', tModelObject);
-    draftObject.set('t__owner', object);
-    await draftObject.save();
+
+    // Apply sampleInstance properties to both objects, if available
     if (sampleInstance) {
       if (sampleInstance.get('t__color')) {
-        object.set('t__color', sampleInstance.get('t__color'));
+        publishedObject.set('t__color', sampleInstance.get('t__color'));
         draftObject.set('t__color', sampleInstance.get('t__color'));
       }
       if (sampleInstance.get('ACL')) {
-        object.set('ACL', sampleInstance.get('ACL'));
+        publishedObject.set('ACL', sampleInstance.get('ACL'));
         draftObject.set('ACL', sampleInstance.get('ACL'));
       }
     }
-    return [object, draftObject];
-  } catch(error) {
-    console.log('Error in safeCreateForChisel', error);
+
+    // Save both objects
+    await publishedObject.save();
+    await draftObject.save();
+
+    return [publishedObject, draftObject];
+  } catch (error) {
+    console.error('Error in safeCreateForChisel', error);
     return { status: 'error', error };
   }
-}
+};
 
+
+
+// Update both the Draft and Published versions with the given newData
+const safeUpdateForChisel = async (ModelName, publishedObject, newData) => {
+  try {
+    // Update the Published object with newData
+    Object.keys(newData).forEach((key) => publishedObject.set(key, newData[key]));
+    await publishedObject.save();
+
+    // Check if there is a Draft object associated with the Published object
+    const draftObjectQuery = new Parse.Query(ModelName);
+    draftObjectQuery.equalTo('t__owner', publishedObject);
+    const draftObject = await draftObjectQuery.first();
+
+    // If a Draft object exists, update it with newData as well
+    if (draftObject) {
+      Object.keys(newData).forEach((key) => draftObject.set(key, newData[key]));
+      await draftObject.save();
+    }
+  } catch (error) {
+    console.error('Error in safeUpdateForChisel', error);
+  }
+};
+
+// Removes both the Draft and Published versions of the sourceObject
+const safeRemoveForChisel = async (ModelName, publishedObject) => {
+  try {
+    const draftObjectQuery = new Parse.Query(ModelName);
+    draftObjectQuery.equalTo('t__owner', publishedObject);
+    const draftObject = await draftObjectQuery.first();
+
+    // Destroy the Draft object, if it exists
+    if (draftObject) {
+      await draftObject.destroy({ useMasterKey: true });
+    }
+
+    // Destroy the Published object
+    await publishedObject.destroy({ useMasterKey: true });
+  } catch (error) {
+    console.error('Error in safeRemoveForChisel', error);
+  }
+};
 
 const getModelObject = async(modelName) => {
   try {
@@ -800,13 +837,25 @@ const getModelObject = async(modelName) => {
   return null;
 }
 
-// Get Site nameId to generate Model names
-const getSiteNameId = async(parseServerSiteId) => {
+const createMediaItemInstanceWithId = async(objectId) => {
+  const MediaItemModel = Parse.Object.extend('MediaItem');
+  const newMediaItemObject = new MediaItemModel();
+  newMediaItemObject.id = objectId;
+  return newMediaItemObject;
+}
+const createMediaItemFromFile = async(fileRecord) => {
   const siteQuery = new Parse.Query('Site');
-  if (parseServerSiteId) siteQuery.equalTo('objectId', parseServerSiteId);
-  const siteRecord = await siteQuery.first({useMasterKey: true});
-  if (!siteRecord || !siteRecord.get('nameId')) return null;
-  return siteRecord.get('nameId');
+  const siteObject = await siteQuery.first({ useMasterKey: true });
+  const MediaItemModel = Parse.Object.extend('MediaItem');
+  const newMediaItemObject = new MediaItemModel();
+  newMediaItemObject.set('site', siteObject);
+  newMediaItemObject.set('assigned', true);
+  newMediaItemObject.set('type', fileRecord._type);
+  newMediaItemObject.set('size', fileRecord._size);
+  newMediaItemObject.set('file', fileRecord);
+  newMediaItemObject.set('name', fileRecord._name);
+  await newMediaItemObject.save();
+  return newMediaItemObject;
 }
 
 // As we are not sure where we use legacy siteId params.
@@ -856,6 +905,17 @@ const updateDeveloperApp = async(params) => {
 }
 
 
+Parse.Cloud.define("updateDeveloperApp", async (request) => {
+  try {
+    const appDetail = await updateDeveloperApp(request.params);
+
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('inside updateDeveloperApp', error);
+    return { status: 'error', error };
+  }
+});
+
 
 const updateDeveloperAppData = async(params) => {
   const { parseServerSiteId, appDataId, status } = params;
@@ -881,18 +941,6 @@ const updateDeveloperAppData = async(params) => {
   }  
 }
 
-
-Parse.Cloud.define("updateDeveloperApp", async (request) => {
-  try {
-    const appDetail = await updateDeveloperApp(request.params);
-
-    return { status: 'success', appDetail };
-  } catch (error) {
-    console.error('inside updateDeveloperApp', error);
-    return { status: 'error', error };
-  }
-});
-
 Parse.Cloud.define("updateDeveloperAppData", async (request) => {
   try {
     const appData = await updateDeveloperAppData(request.params);
@@ -903,75 +951,6 @@ Parse.Cloud.define("updateDeveloperAppData", async (request) => {
     return { status: 'error', error };
   }
 });
-
-
-Parse.Cloud.define("getAppsList", async (request) => {
-  const { parseServerSiteId, filter: { developer = [], status } } = request.params;
-  try {
-    const apps = await getAppsList(parseServerSiteId, developer, status);
-    
-    return { status: 'success', apps };
-  } catch (error) {
-    console.error('inside getAppsList', error);
-    return { status: 'error', error };
-  }
-});
-
-const getAppsList = async(parseServerSiteId, developerIds, status) => {
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
-
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Icon');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include(['Content.Catgories']);
-    query.include(['Data.Dashboard_Setting']);
-    query.include(['Data.Dashboard_Setting.SVG_Icon']);
-    query.include(['Data.Capabilities']);
-    query.include('Data.Facilitator_Mode');
-    query.include('Data.Permissions');
-    query.include('Data.Sandbox_Permissions');
-
-
-    query.include('Developer');
-    query.include('Security');
-
-    
-
-    if (developerIds && developerIds.length > 0) {
-      const developersQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
-      developersQuery.containedIn('objectId', developerIds);
-      query.matchesQuery('Developer', developersQuery);
-    }
-    
-
-    if (!!status) {
-      const readyForSaleQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-      readyForSaleQuery.equalTo('Status', status);
-      query.matchesQuery('Data', readyForSaleQuery);
-    }
-    
-    const appObjects = await query.find({ useMasterKey: true });
-    
-    const list = await getAppListFromObjects(appObjects);
-    return list;
-  } catch(error) {
-    console.error('inside getPublicAppsList', error);
-    throw error;
-  }
-}
 
 
 Parse.Cloud.define("getPluginsList", async (request) => {
@@ -1202,7 +1181,7 @@ const getPluginsListData = async(parseServerSiteId) => {
 }
 
 
-
+// Used in powerplay - marketplace site
 Parse.Cloud.define("publishedAppsList", async (request) => {
   const { siteId, parseServerSiteId } = request.params;
   try {
@@ -1215,7 +1194,7 @@ Parse.Cloud.define("publishedAppsList", async (request) => {
   }
 });
 
-
+// Used in powerplay - marketplace site
 Parse.Cloud.define("featuredAppsList", async (request) => {
   const { parseServerSiteId, siteId } = request.params;
   try {
@@ -1272,6 +1251,7 @@ const getFeaturedAppsList = async(parseServerSiteId) => {
   }
 }
 
+// Used in powerplay - marketplace site
 // Special case where we use siteId instead of parseServerSiteId, not to break the legacy code
 Parse.Cloud.define("appsMadeBy", async (request) => {
   const { siteId, parseServerSiteId, companyName } = request.params;
@@ -1979,6 +1959,7 @@ Parse.Cloud.define('linkWith', async(request) => {
 })
 
 // Related with Mural Auth
+// Used from Powerplay Marketplace
 Parse.Cloud.define('activateDeveloper', async(request) => {
   try {
     const { parseServerSiteId, userId, developerId } = request.params;
@@ -2686,26 +2667,6 @@ const buildCategoryObjectsFromIds = async(parseServerSiteId, categoryIds) => {
   })
 }
 
-const createMediaItemInstanceWithId = async(objectId) => {
-  const MediaItemModel = Parse.Object.extend('MediaItem');
-  const newMediaItemObject = new MediaItemModel();
-  newMediaItemObject.id = objectId;
-  return newMediaItemObject;
-}
-const createMediaItemFromFile = async(fileRecord) => {
-  const siteQuery = new Parse.Query('Site');
-  const siteObject = await siteQuery.first({ useMasterKey: true });
-  const MediaItemModel = Parse.Object.extend('MediaItem');
-  const newMediaItemObject = new MediaItemModel();
-  newMediaItemObject.set('site', siteObject);
-  newMediaItemObject.set('assigned', true);
-  newMediaItemObject.set('type', fileRecord._type);
-  newMediaItemObject.set('size', fileRecord._size);
-  newMediaItemObject.set('file', fileRecord);
-  newMediaItemObject.set('name', fileRecord._name);
-  await newMediaItemObject.save();
-  return newMediaItemObject;
-}
 // Get Categories list
 Parse.Cloud.define("getCategories", async (request) => {
   const { parseServerSiteId } = request.params;
