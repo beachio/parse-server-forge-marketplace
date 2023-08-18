@@ -872,53 +872,20 @@ Parse.Cloud.define("getSiteNameId", async (request) => {
   }
 });
 
-
-const updateDeveloperApp = async(params) => {
-  const { parseServerSiteId, appId, installParams, status } = params;
+// Used in forge-client, plugin install params update drawer
+Parse.Cloud.define("updateDeveloperAppData", async (request) => {
   try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
-    }
-    
-    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('objectId', appId);
-    const appObject = await query.first();
+    const appData = await updateDeveloperAppData(request.params);
 
-    await safeUpdateForChisel(DEVELOPER_APP_MODEL_NAME, appObject, {
-      InstallParams: installParams
-    });
-    
-    if (appObject.get('Data') && appObject.get('Data')[0]) {
-      await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appObject.get('Data')[0], {
-        Status: status
-      });
-    }
-    
-    return appObject;
-  } catch(error) {
-    console.error('inside updateDeveloperApp function', error);
-  }  
-}
-
-
-Parse.Cloud.define("updateDeveloperApp", async (request) => {
-  try {
-    const appDetail = await updateDeveloperApp(request.params);
-
-    return { status: 'success', appDetail };
+    return { status: 'success', appData };
   } catch (error) {
-    console.error('inside updateDeveloperApp', error);
+    console.error('inside updateDeveloperAppData', error);
     return { status: 'error', error };
   }
 });
 
-
 const updateDeveloperAppData = async(params) => {
-  const { parseServerSiteId, appDataId, status } = params;
+  const { parseServerSiteId, appDataId, installParams, status } = params;
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -931,28 +898,21 @@ const updateDeveloperAppData = async(params) => {
     query.equalTo('objectId', appDataId);
     const appDataObject = await query.first();
 
-    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, {
+    let newAppData = {
       Status: status
-    });
+    };
+    if (installParams) newAppData['InstallParams'] = installParams;
+
+    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
     
     return appDataObject;
   } catch(error) {
-    console.error('inside updateDeveloperAppData function', error);
-  }  
+    console.error('Error in updateDeveloperAppData function', error);
+  }
 }
 
-Parse.Cloud.define("updateDeveloperAppData", async (request) => {
-  try {
-    const appData = await updateDeveloperAppData(request.params);
 
-    return { status: 'success', appData };
-  } catch (error) {
-    console.error('inside updateDeveloperAppData', error);
-    return { status: 'error', error };
-  }
-});
-
-
+// Used by both forge-client and forge-publisher
 Parse.Cloud.define("getPluginsList", async (request) => {
   const { parseServerSiteId, filter } = request.params;
   try {
@@ -1065,7 +1025,7 @@ const getPluginsList = async(parseServerSiteId, filter) => {
   }
 }
 
-
+// Used in forge-client, publisher dashboard page
 Parse.Cloud.define("getTopPluginsList", async (request) => {
   const { parseServerSiteId, limit = 3, sortBy = 'installsCount' } = request.params;
   try {
@@ -1132,7 +1092,7 @@ const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
   }
 }
 
-
+// Used in forge-client, publisher dashboard to provide plugin statistics(by status)
 Parse.Cloud.define("getPluginsListData", async (request) => {
   const { parseServerSiteId } = request.params;
   try {
@@ -1181,7 +1141,7 @@ const getPluginsListData = async(parseServerSiteId) => {
 }
 
 
-// Used in powerplay - marketplace site
+// Used in forge-publisher site
 Parse.Cloud.define("publishedAppsList", async (request) => {
   const { siteId, parseServerSiteId } = request.params;
   try {
@@ -1194,7 +1154,7 @@ Parse.Cloud.define("publishedAppsList", async (request) => {
   }
 });
 
-// Used in powerplay - marketplace site
+// Used in forge-publisher site
 Parse.Cloud.define("featuredAppsList", async (request) => {
   const { parseServerSiteId, siteId } = request.params;
   try {
@@ -1251,7 +1211,7 @@ const getFeaturedAppsList = async(parseServerSiteId) => {
   }
 }
 
-// Used in powerplay - marketplace site
+// Used in forge-publisher
 // Special case where we use siteId instead of parseServerSiteId, not to break the legacy code
 Parse.Cloud.define("appsMadeBy", async (request) => {
   const { siteId, parseServerSiteId, companyName } = request.params;
@@ -1305,7 +1265,7 @@ const getAppsListMadeBy = async(parseServerSiteId, companyName) => {
   }
 }
 
-
+// Used in forge-publisher
 Parse.Cloud.define("categoryAppsList", async (request) => {
   const { siteId, parseServerSiteId, categorySlug } = request.params;
   try {
@@ -1383,6 +1343,7 @@ const getAppListFromObjects = async (appObjects) => {
   return list.sort((a, b) => (a.name > b.name ? 1 : -1));
 }
 
+// Used in forge-publisher
 // Special case where we use siteId instead of parseServerSiteId, not to break the legacy code
 Parse.Cloud.define("searchApps", async (request) => {
   const { siteId, parseServerSiteId, keyword } = request.params;
@@ -1429,7 +1390,7 @@ const searchApps = async(parseServerSiteId, keyword) => {
 }
 
 
-
+// Used in forge-publisher
 Parse.Cloud.define("getAppDetail", async (request) => {
   const { parseServerSiteId, appSlug } = request.params;
   try {
@@ -1489,16 +1450,6 @@ const getAppDetail = async(parseServerSiteId, appSlug) => {
   }
 }
 
-Parse.Cloud.define("getDeveloperAppByIds", async (request) => {
-  const { siteId, parseServerSiteId, appIds } = request.params;
-  try {
-    const apps = await Promise.all(appIds.map(appId => getDeveloperAppById(siteId || parseServerSiteId, appId)));
-    return { status: 'success', apps };
-  } catch (error) {
-    console.error('inside getDeveloperAppByIds', error);
-    return { status: 'error', error };
-  }
-});
 
 
 Parse.Cloud.define("getDeveloperAppById", async (request) => {
