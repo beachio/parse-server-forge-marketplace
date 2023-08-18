@@ -1298,24 +1298,30 @@ const getCategoryAppsList = async(parseServerSiteId, categorySlug) => {
     categoryQuery.equalTo('Slug', categorySlug);
     const categoryObject = await categoryQuery.first({ useMasterKey: true });
 
-    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.equalTo('t__status', 'Published');
-    query.include('Data');
-    query.include('Content');
-    query.include('Content.Icon');
-    query.include('Content.Key_Image');
-    query.include(['Content.Screenshots']);
-    query.include('Developer');
-    query.include('Security');
-    
-    const categoriesMatchQuery = new Parse.Query(DEVELOPER_APP_CONTENT_MODEL_NAME);
-    categoriesMatchQuery.equalTo('Categories', categoryObject);
-    query.matchesQuery('Content', categoriesMatchQuery);
+    console.log("category object============", categoryObject);
+    if (categoryObject) {
+      const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+      query.equalTo('t__status', 'Published');
+      query.include('Data');
+      query.include('Content');
+      query.include('Content.Icon');
+      query.include('Content.Key_Image');
+      query.include(['Content.Screenshots']);
+      query.include('Developer');
+      query.include('Security');
 
-    const appObjects = await query.find({ useMasterKey: true });
     
-    const list = await getAppListFromObjects(appObjects);
-    return list;
+      const categoriesMatchQuery = new Parse.Query(DEVELOPER_APP_CONTENT_MODEL_NAME);
+      categoriesMatchQuery.equalTo('Categories', categoryObject);
+      query.matchesQuery('Content', categoriesMatchQuery);
+
+      const appObjects = await query.find({ useMasterKey: true });
+      
+      const list = await getAppListFromObjects(appObjects);
+      return list;
+    }
+
+    return [];
 
   } catch(error) {
     console.error('inside getCategoryAppsList', error);
