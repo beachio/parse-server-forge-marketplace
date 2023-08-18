@@ -858,59 +858,161 @@ const createMediaItemFromFile = async(fileRecord) => {
   return newMediaItemObject;
 }
 
-// As we are not sure where we use legacy siteId params.
-// For new versions, we encourage you to use parseServerSiteId
-Parse.Cloud.define("getSiteNameId", async (request) => {
-  const { siteId, parseServerSiteId } = request.params;
-  try {
-    const siteNameId = await getSiteNameId(siteId || parseServerSiteId);
-    
-    return { status: 'success', siteNameId };
-  } catch (error) {
-    console.error('inside getSiteNameId', error);
-    return { status: 'error', error };
-  }
-});
 
-// Used in forge-client, plugin install params update drawer
-Parse.Cloud.define("updateDeveloperAppData", async (request) => {
-  try {
-    const appData = await updateDeveloperAppData(request.params);
 
-    return { status: 'success', appData };
-  } catch (error) {
-    console.error('inside updateDeveloperAppData', error);
-    return { status: 'error', error };
-  }
-});
 
-const updateDeveloperAppData = async(params) => {
-  const { parseServerSiteId, appDataId, installParams, status } = params;
-  try {
-    // get site name Id and generate MODEL names based on that
-    const siteNameId = await getSiteNameId(parseServerSiteId);
-    if (siteNameId === null) {
-      throw { message: 'Invalid siteId' };
+function getDeveloperFromAppObject(appObject) {
+  let developer = null;
+  const developerObject = appObject.get('Developer');
+
+  if (developerObject && developerObject.length > 0) {
+    developer = {
+      id: developerObject[0].id,
+      name: developerObject[0].get('Name'),
+      verified: developerObject[0].get('Verified') || false,
+      company: developerObject[0].get('Company') || '',
+      country: developerObject[0].get('Country') || '',
+      website: developerObject[0].get('Website') || '',
+      email: developerObject[0].get('Email') || '',
+      isActive: developerObject[0].get('IsActive') || false,
     }
-    
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const query = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    query.equalTo('objectId', appDataId);
-    const appDataObject = await query.first();
+  }
+  return developer;
+}
 
-    let newAppData = {
-      Status: status
-    };
-    if (installParams) newAppData['InstallParams'] = installParams;
+function getAppContentFromAppObject(appObject) {
+  let developerContent = null;
+  const developerContentObject = appObject.get('Content');
+  if (developerContentObject && developerContentObject.length > 0) {
+    let icon = null;
+    if (developerContentObject[0].get('Icon')) {
+      icon = developerContentObject[0].get('Icon').get('file');
+    }
+    let screenshots = [], screenshotObjects = [];
+    if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
+      screenshotObjects = developerContentObject[0].get('Screenshots')
+        .filter(screen => screen.get('file'))
+        .map(screen => screen.get('file'));
+      screenshots = developerContentObject[0].get('Screenshots')
+        .filter(screen => screen.get('file'))
+        .map(screen => screen.get('file')._url);
+    }
+    let categories = [];
+    if (developerContentObject[0].get('Categories') && developerContentObject[0].get('Categories').length > 0) {
+      categories = developerContentObject[0].get('Categories').map(category => ({
+        name: category.get('Name'),
+        slug: category.get('Slug'),
+        id: category.id
+      }))
+    }
+    let keyImage = null;
+    if (developerContentObject[0].get('Key_Image') && developerContentObject[0].get('Key_Image').get('file'))
+      keyImage = developerContentObject[0].get('Key_Image').get('file')._url;
+    developerContent = {
+      id: developerContentObject[0].id,
+      shortName: developerContentObject[0].get('Short_Name'),
+      keyImage,
+      description: developerContentObject[0].get('Description') || '',
+      termsURL: developerContentObject[0].get('Terms_URL') || '',
+      privacyURL: developerContentObject[0].get('Privacy_URL') || '',
+      featured: developerContentObject[0].get('Featured_') || false,
+      listing: developerContentObject[0].get('Listing') || [],
+      filters: developerContentObject[0].get('Filters') || [],
+      categories,
+      icon,
+      screenshots,
+      screenshotObjects
+    }
+  }
+  return developerContent;
+}
 
-    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
-    
-    return appDataObject;
+
+function getAppDataFromAppObject(appObject) {
+  let developerData = null;
+  const developerDataObject = appObject.get('Data');
+
+  if (developerDataObject && developerDataObject.length > 0) {    
+    let dashboardSettings = null;
+
+    if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
+      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
+    }
+
+    developerData = {
+      id: developerDataObject[0].id,
+      dataName: developerDataObject[0].get('Data_Name'),
+      installsCount: developerDataObject[0].get('Installs_Count'),
+      status: developerDataObject[0].get('Status'),
+      rating: developerDataObject[0].get('Rating'),
+      isPaid: developerDataObject[0].get('Is_Paid_') || false,
+      feeType: developerDataObject[0].get('Fee_Type') || null,
+      feeAmount: developerDataObject[0].get('Fee_Amount') || null,
+      capabilities: developerDataObject[0].get('Capabilities') || null,
+      facilitatorMode: developerDataObject[0].get('Facilitator_Mode') || null,
+      permissions: developerDataObject[0].get('Permissions') || [],
+      sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || [],
+      dashboardSettings,
+    }
+  }
+  return developerData;
+}
+
+// Get site info from app object / security
+async function getSiteInfoFromAppObject(appObject) {
+  try {
+    const securityObject = appObject.get('Security');
+    if (securityObject && securityObject[0] && securityObject[0].get('Forge_API_Key')) {
+      const url = 'https://getforge.com/api/v2/settings/site_info?site_token=' + securityObject[0].get('Forge_API_Key');
+      const result = await axios.get(url);
+      return result.data ? result.data.message : null;
+    }
+    return null
   } catch(error) {
-    console.error('Error in updateDeveloperAppData function', error);
+    console.error("inside getSiteInfoFromAppObject", error);
+    // throw error;
+    return null;
   }
 }
 
+function getSecurityFromAppObject(appObject) {
+  try {
+    let security = null;
+    const securityObject = appObject.get('Security');
+    if (securityObject && securityObject.length > 0) {
+      const policy = securityObject[0].get('Policy');
+      if (policy) {
+        security = {
+          id: policy[0].id,
+          name: policy[0].get('Policy_Name'),
+          EvalSafe_Pass_Max: policy[0].get('Eval_Safe_Pass_Max'),
+          EvalSafe_Pass_Min: policy[0].get('EvalSafe_Pass_Min'),
+          EvalSafe_Warning_Max: policy[0].get('EvalSafe_Warning_Max'),
+          EvalSafe_Warning_Min: policy[0].get('EvalSafe_Warning_Min'),
+          EvalSafe_Fail_Max: policy[0].get('EvalSafe_Fail_Max'),
+          EvalSafe_Fail_Min: policy[0].get('EvalSafe_Fail_Min'),
+          RequireSSL: policy[0].get('RequireSSL'),
+          RequireForceSSL: policy[0].get('RequireForceSSL'),
+          AllowExternalNetworkRequest: policy[0].get('AllowExternalNetworkRequest'),
+          ExternalRequestAllowList: policy[0].get('ExternalRequestAllowList'),
+          ExternalRequestsBlockList: policy[0].get('ExternalRequestsBlockList'),
+          AllowInsecureNetworkURLs: policy[0].get('AllowInsecureNetworkURLs'),
+          Bandwidth_Day_Usage_Limit: policy[0].get('Bandwidth_Day_Usage_Limit'),
+          BandWidth_Week_Usage_Limit: policy[0].get('BandWidth_Week_Usage_Limit'),
+          Forms_Allowed: policy[0].get('Forms_Allowed'),
+          Forms_Limit: policy[0].get('Forms_Limit'),
+          Allow_Collaborators: policy[0].get('Allow_Collaborators'),
+          Collaborator_Limit: policy[0].get('Collaborator_Limit'),
+          Media_Microphone_Allowed: policy[0].get('Media_Microphone_Allowed'),
+          Media_Camera_Allowed: policy[0].get('Media_Camera_Allowed')
+        };
+      }
+    }
+    return security;
+  } catch(error) {
+    console.error("get security", error);
+  }
+}
 
 // Used by both forge-client and forge-publisher
 Parse.Cloud.define("getPluginsList", async (request) => {
@@ -1022,6 +1124,59 @@ const getPluginsList = async(parseServerSiteId, filter) => {
   } catch(error) {
     console.error('Error in getPluginsList function', error);
     throw error;
+  }
+}
+
+// As we are not sure where we use legacy siteId params.
+// For new versions, we encourage you to use parseServerSiteId
+Parse.Cloud.define("getSiteNameId", async (request) => {
+  const { siteId, parseServerSiteId } = request.params;
+  try {
+    const siteNameId = await getSiteNameId(siteId || parseServerSiteId);
+    
+    return { status: 'success', siteNameId };
+  } catch (error) {
+    console.error('inside getSiteNameId', error);
+    return { status: 'error', error };
+  }
+});
+
+// Used in forge-client, plugin install params update drawer
+Parse.Cloud.define("updateDeveloperAppData", async (request) => {
+  try {
+    const appData = await updateDeveloperAppData(request.params);
+
+    return { status: 'success', appData };
+  } catch (error) {
+    console.error('inside updateDeveloperAppData', error);
+    return { status: 'error', error };
+  }
+});
+
+const updateDeveloperAppData = async(params) => {
+  const { parseServerSiteId, appDataId, installParams, status } = params;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const query = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    query.equalTo('objectId', appDataId);
+    const appDataObject = await query.first();
+
+    let newAppData = {
+      Status: status
+    };
+    if (installParams) newAppData['InstallParams'] = installParams;
+
+    await safeUpdateForChisel(DEVELOPER_APP_DATA_MODEL_NAME, appDataObject, newAppData);
+    
+    return appDataObject;
+  } catch(error) {
+    console.error('Error in updateDeveloperAppData function', error);
   }
 }
 
@@ -1450,164 +1605,7 @@ const getAppDetail = async(parseServerSiteId, appSlug) => {
   }
 }
 
-
-
-
-
-function getDeveloperFromAppObject(appObject) {
-  let developer = null;
-  const developerObject = appObject.get('Developer');
-
-  if (developerObject && developerObject.length > 0) {
-    developer = {
-      id: developerObject[0].id,
-      name: developerObject[0].get('Name'),
-      verified: developerObject[0].get('Verified') || false,
-      company: developerObject[0].get('Company') || '',
-      country: developerObject[0].get('Country') || '',
-      website: developerObject[0].get('Website') || '',
-      email: developerObject[0].get('Email') || '',
-      isActive: developerObject[0].get('IsActive') || false,
-    }
-  }
-  return developer;
-}
-
-function getAppContentFromAppObject(appObject) {
-  let developerContent = null;
-  const developerContentObject = appObject.get('Content');
-  if (developerContentObject && developerContentObject.length > 0) {
-    let icon = null;
-    if (developerContentObject[0].get('Icon')) {
-      icon = developerContentObject[0].get('Icon').get('file');
-    }
-    let screenshots = [], screenshotObjects = [];
-    if (developerContentObject[0].get('Screenshots') && developerContentObject[0].get('Screenshots').length > 0) {
-      screenshotObjects = developerContentObject[0].get('Screenshots')
-        .filter(screen => screen.get('file'))
-        .map(screen => screen.get('file'));
-      screenshots = developerContentObject[0].get('Screenshots')
-        .filter(screen => screen.get('file'))
-        .map(screen => screen.get('file')._url);
-    }
-    let categories = [];
-    if (developerContentObject[0].get('Categories') && developerContentObject[0].get('Categories').length > 0) {
-      categories = developerContentObject[0].get('Categories').map(category => ({
-        name: category.get('Name'),
-        slug: category.get('Slug'),
-        id: category.id
-      }))
-    }
-    let keyImage = null;
-    if (developerContentObject[0].get('Key_Image') && developerContentObject[0].get('Key_Image').get('file'))
-      keyImage = developerContentObject[0].get('Key_Image').get('file')._url;
-    developerContent = {
-      id: developerContentObject[0].id,
-      shortName: developerContentObject[0].get('Short_Name'),
-      keyImage,
-      description: developerContentObject[0].get('Description') || '',
-      termsURL: developerContentObject[0].get('Terms_URL') || '',
-      privacyURL: developerContentObject[0].get('Privacy_URL') || '',
-      featured: developerContentObject[0].get('Featured_') || false,
-      listing: developerContentObject[0].get('Listing') || [],
-      filters: developerContentObject[0].get('Filters') || [],
-      categories,
-      icon,
-      screenshots,
-      screenshotObjects
-    }
-  }
-  return developerContent;
-}
-
-
-function getAppDataFromAppObject(appObject) {
-  let developerData = null;
-  const developerDataObject = appObject.get('Data');
-
-  if (developerDataObject && developerDataObject.length > 0) {    
-    let dashboardSettings = null;
-
-    if (developerDataObject[0].get('Dashboard_Setting') && developerDataObject[0].get('Dashboard_Setting').length > 0) {
-      dashboardSettings = developerDataObject[0].get('Dashboard_Setting')[0];
-    }
-
-    developerData = {
-      id: developerDataObject[0].id,
-      dataName: developerDataObject[0].get('Data_Name'),
-      installsCount: developerDataObject[0].get('Installs_Count'),
-      status: developerDataObject[0].get('Status'),
-      rating: developerDataObject[0].get('Rating'),
-      isPaid: developerDataObject[0].get('Is_Paid_') || false,
-      feeType: developerDataObject[0].get('Fee_Type') || null,
-      feeAmount: developerDataObject[0].get('Fee_Amount') || null,
-      capabilities: developerDataObject[0].get('Capabilities') || null,
-      facilitatorMode: developerDataObject[0].get('Facilitator_Mode') || null,
-      permissions: developerDataObject[0].get('Permissions') || [],
-      sandboxPermissions: developerDataObject[0].get('Sandbox_Permissions') || [],
-      dashboardSettings,
-    }
-  }
-  return developerData;
-}
-
-// Get site info from app object / security
-async function getSiteInfoFromAppObject(appObject) {
-  try {
-    const securityObject = appObject.get('Security');
-    if (securityObject && securityObject[0] && securityObject[0].get('Forge_API_Key')) {
-      const url = 'https://getforge.com/api/v2/settings/site_info?site_token=' + securityObject[0].get('Forge_API_Key');
-      const result = await axios.get(url);
-      return result.data ? result.data.message : null;
-    }
-    return null
-  } catch(error) {
-    console.error("inside getSiteInfoFromAppObject", error);
-    // throw error;
-    return null;
-  }
-}
-
-function getSecurityFromAppObject(appObject) {
-  try {
-    let security = null;
-    const securityObject = appObject.get('Security');
-    if (securityObject && securityObject.length > 0) {
-      const policy = securityObject[0].get('Policy');
-      if (policy) {
-        security = {
-          id: policy[0].id,
-          name: policy[0].get('Policy_Name'),
-          EvalSafe_Pass_Max: policy[0].get('Eval_Safe_Pass_Max'),
-          EvalSafe_Pass_Min: policy[0].get('EvalSafe_Pass_Min'),
-          EvalSafe_Warning_Max: policy[0].get('EvalSafe_Warning_Max'),
-          EvalSafe_Warning_Min: policy[0].get('EvalSafe_Warning_Min'),
-          EvalSafe_Fail_Max: policy[0].get('EvalSafe_Fail_Max'),
-          EvalSafe_Fail_Min: policy[0].get('EvalSafe_Fail_Min'),
-          RequireSSL: policy[0].get('RequireSSL'),
-          RequireForceSSL: policy[0].get('RequireForceSSL'),
-          AllowExternalNetworkRequest: policy[0].get('AllowExternalNetworkRequest'),
-          ExternalRequestAllowList: policy[0].get('ExternalRequestAllowList'),
-          ExternalRequestsBlockList: policy[0].get('ExternalRequestsBlockList'),
-          AllowInsecureNetworkURLs: policy[0].get('AllowInsecureNetworkURLs'),
-          Bandwidth_Day_Usage_Limit: policy[0].get('Bandwidth_Day_Usage_Limit'),
-          BandWidth_Week_Usage_Limit: policy[0].get('BandWidth_Week_Usage_Limit'),
-          Forms_Allowed: policy[0].get('Forms_Allowed'),
-          Forms_Limit: policy[0].get('Forms_Limit'),
-          Allow_Collaborators: policy[0].get('Allow_Collaborators'),
-          Collaborator_Limit: policy[0].get('Collaborator_Limit'),
-          Media_Microphone_Allowed: policy[0].get('Media_Microphone_Allowed'),
-          Media_Camera_Allowed: policy[0].get('Media_Camera_Allowed')
-        };
-      }
-    }
-    return security;
-  } catch(error) {
-    console.error("get security", error);
-  }
-}
-
-
+// Used in forge-publisher, for auth
 Parse.Cloud.define("getDeveloperFromUserId", async (request) => {
   const { siteId, parseServerSiteId, userId } = request.params;
   try {
@@ -1658,9 +1656,6 @@ const getDeveloperFromUserId = async(parseServerSiteId, userId) => {
   }
 }
 
-
-
-
 const checkIfMuralAdmin = async(userId) => {
   try {
     const UserModel = Parse.Object.extend('User');
@@ -1684,6 +1679,7 @@ const checkIfMuralAdmin = async(userId) => {
   }
 }
 
+// Mural Auth, used in mural auth and many other mural related plugins 
 Parse.Cloud.define("authorize", async (request) => {
   const { params } = request;
   const authorizationUri = 'https://app.mural.co/api/public/v1/authorization/oauth2/';
@@ -1704,6 +1700,7 @@ Parse.Cloud.define("authorize", async (request) => {
   }
 });
 
+// Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define("token", async (request) => {
   try {
     const { params } = request;
@@ -1740,7 +1737,7 @@ Parse.Cloud.define("token", async (request) => {
   }
 });
 
-
+// Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define("refresh", async (request) => {
   try {
     const { params } = request;
@@ -1767,7 +1764,7 @@ Parse.Cloud.define("refresh", async (request) => {
   }
 });
 
-
+// Used in forge-publisher
 Parse.Cloud.define("getPublisherSettings", async (request) => {
   const { parseServerSiteId } = request.params;
   try {
@@ -1814,7 +1811,7 @@ const getMuralRedirectURI = (devMode) => {
   return devMode ? process.env.DEV_MURAL_REDIRECT_URI : process.env.MURAL_REDIRECT_URI;
 }
 
-// Related with Mural Auth
+// Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define('linkWith', async(request) => {
   const { authData, email } = request.params;
   try {
@@ -1843,8 +1840,7 @@ Parse.Cloud.define('linkWith', async(request) => {
   }
 })
 
-// Related with Mural Auth
-// Used from Powerplay Marketplace
+// Mural Auth, used in mural auth
 Parse.Cloud.define('activateDeveloper', async(request) => {
   try {
     const { parseServerSiteId, userId, developerId } = request.params;
@@ -1908,7 +1904,7 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
   }
 }
 
-// NEW CODE: Used from forge-client only for now.
+// Used in forge-client
 Parse.Cloud.define('getDevelopersList', async(request) => {
   try {
     const { parseServerSiteId, verified } = request.params;
@@ -1920,18 +1916,6 @@ Parse.Cloud.define('getDevelopersList', async(request) => {
   }
 });
 
-
-// LEGACY Code
-Parse.Cloud.define('developersList', async(request) => {
-  try {
-    const { parseServerSiteId, verified } = request.params;
-    const developersList = await getDevelopersList(parseServerSiteId, verified);
-    return { status: 'success', developersList };
-  } catch (error) {
-    console.error('inside developersList', error);
-    return { status: 'error', error };
-  }
-});
 
 const getDevelopersList = async(parseServerSiteId, verified = null) => {
   try {
@@ -1971,7 +1955,7 @@ const getDevelopersList = async(parseServerSiteId, verified = null) => {
     throw error;
   }
 }
-
+// used in forge-client
 Parse.Cloud.define("getDeveloperDetail", async (request) => {
   const { parseServerSiteId, developerId } = request.params;
   try {
