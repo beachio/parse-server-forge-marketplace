@@ -1123,6 +1123,86 @@ const getPluginsList = async(parseServerSiteId, filter) => {
 }
 
 
+// Legacy code, 
+// Put back by Alfred on 2023/08/29
+Parse.Cloud.define("getDeveloperAppByIds", async (request) => {
+  const { siteId, parseServerSiteId, appIds } = request.params;
+  try {
+    const apps = await Promise.all(appIds.map(appId => getDeveloperAppById(siteId || parseServerSiteId, appId)));
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getDeveloperAppByIds', error);
+    return { status: 'error', error };
+  }
+});
+
+// Legacy code, 
+// Put back by Alfred on 2023/08/29
+Parse.Cloud.define("getDeveloperAppById", async (request) => {
+  const { siteId, parseServerSiteId, appId } = request.params;
+  try {
+    const appDetail = await getDeveloperAppById(siteId || parseServerSiteId, appId);
+
+    return { status: 'success', appDetail };
+  } catch (error) {
+    console.error('inside getDeveloperAppById', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getDeveloperAppById = async(parseServerSiteId, appId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('objectId', appId)
+    query.include('Data');
+    query.include('Content');
+    query.include('Content.Key_Image');
+    query.include(['Content.Screenshots']);
+    query.include(['Content.Categories']);
+    query.include('Developer');
+    query.include('Security');
+    query.include('Security.Policy');
+    query.include(['Data.Capabilities']);
+    query.include(['Data.Dashboard_Setting']);
+    query.include(['Data.Dashboard_Setting.SVG_Icon']);
+    query.include('Data.Facilitator_Mode');
+    query.include('Data.Permissions');
+    query.include('Data.Sandbox_Permissions');
+
+
+    const appObject = await query.first({ useMasterKey: true });
+    if (!appObject) return null;
+    const developer = getDeveloperFromAppObject(appObject);
+    const developerContent = getAppContentFromAppObject(appObject);
+    const developerData = getAppDataFromAppObject(appObject);
+    const developerSecurity = getSecurityFromAppObject(appObject);
+    const siteInfo = await getSiteInfoFromAppObject(appObject);
+    return {
+      id: appObject.id,
+      name: appObject.get('Name'),
+      slug: appObject.get('Slug'),
+      url: appObject.get('URL'),
+      developer,
+      developerContent,
+      developerData,
+      developerSecurity,
+      siteInfo
+    }
+  } catch(error) {
+    console.error('inside getDeveloperAppById', error);
+    throw error;
+  }
+}
 
 
 
