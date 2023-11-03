@@ -757,39 +757,33 @@ const safeCreateForChisel = async (ModelName, newData) => {
 
     const ModelModel = Parse.Object.extend(ModelName);
     const publishedObject = new ModelModel();
-    const draftObject = new ModelModel();
 
     // Set properties for both Published and Draft objects from the newData
     Object.keys(newData)
       .filter((key) => newData[key]) // Filter out any falsy values in newData
       .forEach((key) => {
         publishedObject.set(key, newData[key]);
-        draftObject.set(key, newData[key]);
       });
 
     // Set the status and model for both objects
     publishedObject.set('t__status', 'Published');
     publishedObject.set('t__model', tModelObject);
-    draftObject.set('t__status', 'Draft');
-    draftObject.set('t__model', tModelObject);
+
 
     // Apply sampleInstance properties to both objects, if available
     if (sampleInstance) {
       if (sampleInstance.get('t__color')) {
         publishedObject.set('t__color', sampleInstance.get('t__color'));
-        draftObject.set('t__color', sampleInstance.get('t__color'));
       }
       if (sampleInstance.get('ACL')) {
         publishedObject.set('ACL', sampleInstance.get('ACL'));
-        draftObject.set('ACL', sampleInstance.get('ACL'));
       }
     }
 
     // Save both objects
     await publishedObject.save();
-    await draftObject.save();
 
-    return [publishedObject, draftObject];
+    return [publishedObject];
   } catch (error) {
     console.error('Error in safeCreateForChisel', error);
     return { status: 'error', error };
