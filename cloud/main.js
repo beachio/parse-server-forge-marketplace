@@ -1840,8 +1840,8 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
 Parse.Cloud.define("installDeveloperApp", async (request) => {
   try {
     const { parseServerSiteId, appId } = request.params;
-    const result = await installDeveloperApp(parseServerSiteId, appId);
-    return { status: 'success', result };
+    const installsCount = await installDeveloperApp(parseServerSiteId, appId);
+    return { status: 'success', installsCount };
   } catch(error) {
     console.error('Error in installDeveloperApp', error);
   }
@@ -1866,7 +1866,9 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
       const installsCount = developerApp.get('Installs_Count') || 0;
       developerApp.set('Installs_Count', installsCount + 1);
       await developerApp.save();
+      return installsCount + 1;
     }
+    return -1;
   } catch(error) {
     console.error('inside installDeveloperApp function', error);
     throw error;
