@@ -1864,7 +1864,7 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
     const developerApp = await query.first();
 
     if (!developerApp || !developerApp.get('Data') || !developerApp.get('Data')[0]) return -1;
-    const dataId = developerApp.get('Data').objectId;
+    const dataId = developerApp.get('Data')[0].objectId;
     const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     dataQuery.equalTo('objectId', dataId)
     const developerAppData = await dataQuery.first();
