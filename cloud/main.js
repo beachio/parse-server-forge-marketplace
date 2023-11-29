@@ -1836,6 +1836,44 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
 
 
 
+// Called in forge-publisher 
+Parse.Cloud.define("installDeveloperApp", async (request) => {
+  try {
+    const { parseServerSiteId, appId } = request.params;
+    const result = await installDeveloperApp(parseServerSiteId, appId);
+    return { status: 'success', result };
+  } catch(error) {
+    console.error('Error in installDeveloperApp', error);
+  }
+});
+
+const installDeveloperApp = async(parseServerSiteId, appId) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('objectId', appId.toString());
+        
+    const developerApp = await query.first();
+
+    if (developerApp) {
+      const installsCount = developerApp.get('Installs_Count') || 0;
+      developerApp.set('Installs_Count', installsCount + 1);
+      await developerApp.save();
+    }
+  } catch(error) {
+    console.error('inside installDeveloperApp function', error);
+    throw error;
+  }
+}
+
+
 
 
 
