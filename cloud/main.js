@@ -1856,19 +1856,25 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
     }
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
-    query.equalTo('objectId', appId.toString());
+    query.equalTo('objectId', appId);
         
     const developerApp = await query.first();
 
-    if (developerApp) {
-      const installsCount = developerApp.get('Installs_Count') || 0;
-      developerApp.set('Installs_Count', installsCount + 1);
-      await developerApp.save();
-      return installsCount + 1;
-    }
-    return -1;
+    if (!developerApp || !developerApp.get('Data') || !developerApp.get('Data')[0]) return -1;
+    const dataId = developerApp.get('Data').objectId;
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('objectId', dataId)
+    const developerAppData = await dataQuery.first();
+
+    if (!developerAppData) return -1;
+
+    const installsCount = developerAppData.get('Installs_Count') || 0;
+    developerAppData.set('Installs_Count', installsCount + 1);
+    await developerAppData.save();
+    return installsCount + 1;
   } catch(error) {
     console.error('inside installDeveloperApp function', error);
     throw error;
