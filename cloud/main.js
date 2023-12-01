@@ -1890,6 +1890,7 @@ Parse.Cloud.define("createReview", async (request) => {
     return { status: 'success', result };
   } catch(error) {
     console.error('Error in createReview', error);
+    return { status: 'failure', error};
   }
 });
 
@@ -1919,6 +1920,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     const ReviewModel = Parse.Object.extend(REVIEW_MODEL_NAME);
     const newObject = new ReviewModel();
     await newObject.save({
+      id: appSlug + ' ' + author,
       appSlug,
       author,
       comment,
