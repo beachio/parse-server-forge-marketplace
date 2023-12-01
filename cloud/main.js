@@ -1894,17 +1894,19 @@ Parse.Cloud.define("createReview", async (request) => {
   }
 });
 
-// Check if a review record by author exist for the app
-// Only create if not exists
+// - Check if a review record by author exist for the app
+// - Only create if not exists
+// - And update App Data Object rating
 const createReview = async(parseServerSiteId, appSlug, author, comment, rating) => {
   try {
-    // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
     if (siteNameId === null) {
       throw { message: 'Invalid siteId' };
     }
-
     const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    // - Check if existing record found
     const query = new Parse.Query(REVIEW_MODEL_NAME);
     query.equalTo('t__status', 'Published');
     query.equalTo('appSlug', appSlug);
@@ -1917,16 +1919,41 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
       }
     }
 
+    // - Create a new rating object
     const ReviewModel = Parse.Object.extend(REVIEW_MODEL_NAME);
-    const newObject = new ReviewModel();
-    newObject.set('id', appSlug + ' ' + author);
-    newObject.set('appSlug', appSlug);
-    newObject.set('author', author);
-    newObject.set('comment', comment);
-    newObject.set('rating', rating);
+    const newReviewObject = new ReviewModel();
+    newReviewObject.set('id', appSlug + ' ' + author);
+    newReviewObject.set('t__status', 'Published');
+    newReviewObject.set('appSlug', appSlug);
+    newReviewObject.set('author', author);
+    newReviewObject.set('comment', comment);
+    newReviewObject.set('rating', rating);
     await newObject.save();
 
-    return newObject;
+    // - Calculate app Rating
+    const relatedQuery = new Parse.Query(REVIEW_MODEL_NAME);
+    relatedQuery.equalTo('t__status', 'Published');
+    relatedQuery.equalTo('appSlug', appSlug)
+    const relatedReviews = await query.find();
+    
+    let appRating = rating;
+    if (relatedReviews && relatedReviews.length > 0) {
+      const ratingSum = relatedReviews.reduce((acc, curReview) => (acc + curReview.get('rating') || 0), 0);
+      appRating = (ratingSum + rating) / (relatedReviews + 1);
+    }
+
+    // - Update app Data Object rating
+    const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    appQuery.equalTo('t__status', 'Published');
+    appQuery.equalTo('appSlug', appSlug);
+    const appObject = await appQuery.first();
+    const appDataObject = (appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
+    if (appDataObject) {
+      appDataObject.set('Rating', appRating);
+      await appDataObject.save();
+    }
+    
+    return newReviewObject;
   } catch(error) {
     console.error('inside createReview function', error);
     throw error;
