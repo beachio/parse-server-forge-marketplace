@@ -1882,6 +1882,55 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
 }
 
 
+// Called in forge-publisher
+Parse.Cloud.define("createReview", async (request) => {
+  try {
+    const { parseServerSiteId, appSlug, author, comment, rating } = request.params;
+    const result = await createReview(parseServerSiteId, appSlug, author, comment, rating);
+    return { status: 'success', result };
+  } catch(error) {
+    console.error('Error in createReview', error);
+  }
+});
+
+// Check if a review record by author exist for the app
+// Only create if not exists
+const createReview = async(parseServerSiteId, appSlug, author, comment, rating) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+    const query = new Parse.Query(REVIEW_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('appSlug', appSlug);
+    query.equalTo('author', author);
+
+    const existingObject = await query.first();
+    if (existingObject) {
+      throw {
+        message: `${author} Already left a review on ${appSlug}`
+      }
+    }
+
+    const ReviewModel = Parse.Object.extend(REVIEW_MODEL_NAME);
+    const newObject = new ReviewModel();
+    await newObject.save({
+      appSlug,
+      author,
+      comment,
+      rating
+    }, {useMasterKey: true});
+
+    return newObject;
+  } catch(error) {
+    console.error('inside createReview function', error);
+    throw error;
+  }
+}
 
 
 
@@ -2076,9 +2125,6 @@ const buildCategoryObjectsFromIds = async(parseServerSiteId, categoryIds) => {
     return object;
   })
 }
-
-
-
 
 
 
