@@ -1839,15 +1839,17 @@ const activateDeveloper = async(parseServerSiteId, userId, developerId) => {
 // Called in forge-publisher 
 Parse.Cloud.define("installDeveloperApp", async (request) => {
   try {
-    const { parseServerSiteId, appId } = request.params;
-    const installsCount = await installDeveloperApp(parseServerSiteId, appId);
+    const { parseServerSiteId, appId, country, city } = request.params;
+    const installsCount = await installDeveloperApp(parseServerSiteId, appId, country, city);
     return { status: 'success', installsCount };
   } catch(error) {
     console.error('Error in installDeveloperApp', error);
   }
 });
 
-const installDeveloperApp = async(parseServerSiteId, appId) => {
+// - Increase DeveloperAppData + 1
+// - Record a new Activity Log
+const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -1857,10 +1859,13 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
     const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const ACTIVITY_LOG_MODEL_NAME = `ct____${siteNameId}____ActivityLog`;
+
+    // - Increase Developer App Data
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
     query.equalTo('objectId', appId);
-        
+
     const developerApp = await query.first();
 
     if (!developerApp || !developerApp.get('Data') || !developerApp.get('Data')[0]) return { count: -1, error: developerApp };
@@ -1874,6 +1879,17 @@ const installDeveloperApp = async(parseServerSiteId, appId) => {
     const installsCount = developerAppData.get('Installs_Count') || 0;
     developerAppData.set('Installs_Count', installsCount + 1);
     await developerAppData.save();
+
+    // - Record New ActivityLog
+    const ActivityLogModel = Parse.Object.extend(ACTIVITY_LOG_MODEL_NAME);
+    const newActivityLogObject = new ActivityLogModel();
+    await newActivityLogObject.save({
+      Title: `Installed ${developerApp.get('Name')} at ${new Date().toUTCString()}`,
+      ActivityKind: 'InstallPlugin',
+      Country: country,
+      City: city
+    }, { useMasterKey: true });
+
     return installsCount + 1;
   } catch(error) {
     console.error('inside installDeveloperApp function', error);
