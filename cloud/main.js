@@ -2871,7 +2871,7 @@ const getPluginInstalls = async(params) => {
 
     // eslint-disable-next-line no-undef
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    query.includes('Data');
+    query.include('Data');
     // - Increase Developer App Data
     // eslint-disable-next-line no-undef
     const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
