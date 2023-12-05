@@ -1944,7 +1944,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     newReviewObject.set('author', author);
     newReviewObject.set('comment', comment);
     newReviewObject.set('rating', rating);
-    await newObject.save();
+    await newReviewObject.save();
 
     // - Calculate app Rating
     const relatedQuery = new Parse.Query(REVIEW_MODEL_NAME);
