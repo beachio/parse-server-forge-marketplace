@@ -1939,7 +1939,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     const ReviewModel = Parse.Object.extend(REVIEW_MODEL_NAME);
     const newReviewObject = new ReviewModel();
     newReviewObject.set('title', appSlug + ' ' + author);
-    newReviewObject.set('t__status', 'Published');
+    newReviewObject.set('t__status', 'Draft');
     newReviewObject.set('appSlug', appSlug);
     newReviewObject.set('author', author);
     newReviewObject.set('comment', comment);
