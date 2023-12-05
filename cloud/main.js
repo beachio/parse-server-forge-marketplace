@@ -2844,3 +2844,49 @@ const removeDeveloper = async(parseServerSiteId, developerId) => {
     throw error;
   }
 }
+// Called in forge-client / publisher panel
+// eslint-disable-next-line no-undef
+Parse.Cloud.define("getPluginInstalls", async (request) => {
+  // return { status: 'success' };
+  try {  
+    const pluginInstalls = await getPluginInstalls(request.params);
+    return { status: 'success', pluginInstalls };
+  } catch(error) {
+    console.error('Error in getPluginInstalls', error);
+    return { status: 'error', error };
+  }
+});
+
+const getPluginInstalls = async(params) => {
+  const { parseServerSiteId, limit = 10, skip = 0} = params;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+
+    // eslint-disable-next-line no-undef
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.includes('Data');
+    // - Increase Developer App Data
+    // eslint-disable-next-line no-undef
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('t__status', 'Published');
+    // dataQuery.descending('Installs_Count');
+    query.matchesQuery('Data', dataQuery);
+
+    query.limit(limit);
+    query.skip(skip);
+
+    const appsList = await query.find({ useMasterKey: true });
+    return appsList;
+
+  } catch(error) {
+    console.error('inside getPluginInstalls function', error);
+    throw error;
+  }
+}
