@@ -2867,20 +2867,14 @@ const getPluginInstalls = async(params) => {
     }
 
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
 
     // eslint-disable-next-line no-undef
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.include('Data');
-    // - Increase Developer App Data
-    // eslint-disable-next-line no-undef
-    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    dataQuery.equalTo('t__status', 'Published');
-    dataQuery.descending('Installs_Count');
-    query.matchesQuery('Data', dataQuery);
-
+    query.equalTo('t__status', 'Published');
     query.limit(limit);
     query.skip(skip);
+    query.ascending('Data.Installs_Count');
 
     const appObjects = await query.find({ useMasterKey: true });
     const lst = appObjects.map((appObject) => {
