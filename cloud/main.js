@@ -2876,14 +2876,25 @@ const getPluginInstalls = async(params) => {
     // eslint-disable-next-line no-undef
     const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     dataQuery.equalTo('t__status', 'Published');
-    // dataQuery.descending('Installs_Count');
+    dataQuery.descending('Installs_Count');
     query.matchesQuery('Data', dataQuery);
 
     query.limit(limit);
     query.skip(skip);
 
-    const appsList = await query.find({ useMasterKey: true });
-    return appsList;
+    const appObjects = await query.find({ useMasterKey: true });
+    const lst = appObjects.map((appObject) => {
+      const developerData = getAppDataFromAppObject(appObject);
+      return {
+        name: appObject.get('Name'),
+        id: appObject.id,
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        kind: appObject.get('Kind'),
+        developerData,
+      };
+    })
+    return lst;
 
   } catch(error) {
     console.error('inside getPluginInstalls function', error);
