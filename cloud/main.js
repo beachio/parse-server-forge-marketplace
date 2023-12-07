@@ -2480,12 +2480,41 @@ const getTopDevelopers = async(parseServerSiteId, sortBy, limit) => {
 
     if (sortBy === 'installsCount') {
       const activityLogQuery = new Parse.Query(ACTIVITYLOG_MODEL_NAME);
-      activityLogQuery.include('developer');
-      activityLogQuery.equalTo('ActivityKind', 'InstallPlugin')
-      activityLogQuery.groupBy('developer');
-      activityLogQuery.ascending('developer');
-      activityLogQuery.limit(limit);
-      const results = await activityLogQuery.find();
+      // activityLogQuery.include('developer');
+      // activityLogQuery.equalTo('ActivityKind', 'InstallPlugin')
+      // activityLogQuery.groupBy('developer');
+      // activityLogQuery.ascending('developer');
+      // activityLogQuery.limit(limit);
+      // activityLogQuery.equalTo('ActivityKind', 'InstallPlugin');
+
+      // Create a match stage to filter by ActivityKind
+      const matchStage = {
+        $match: {
+          ActivityKind: 'InstallPlugin',
+        },
+      };
+
+      // Create a group stage to group by developer and count
+      const groupStage = {
+        $group: {
+          _id: '$developer', // Group by developer field
+          count: { $sum: 1 }, // Count the number of documents in each group
+        },
+      };
+
+      // Create a sort stage to sort by count in ascending order
+      const sortStage = {
+        $sort: {
+          count: 1,
+        },
+      };
+
+      // Add the stages to the aggregate pipeline
+      activityLogQuery.aggregate([matchStage, groupStage, sortStage]);
+
+      // Execute the query
+      const results = await activityLogQuery.find({ useMasterKey: true });
+      // const results = await activityLogQuery.find();
       return results;
     }
     // const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
