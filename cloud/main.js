@@ -2858,7 +2858,7 @@ Parse.Cloud.define("getPluginInstalls", async (request) => {
 });
 
 const getPluginInstalls = async(params) => {
-  const { parseServerSiteId, limit = 10, skip = 0} = params;
+  const { parseServerSiteId, limit = 10, skip = 0, status, hideZeroInstalls } = params;
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -2872,6 +2872,8 @@ const getPluginInstalls = async(params) => {
     const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     dataQuery.equalTo('t__status', 'Published');
     dataQuery.descending('Installs_Count');
+    if (status) dataQuery.equalTo('Status', status);
+    if (hideZeroInstalls) dataQuery.greaterThan('Installs_Count', 0);
     dataQuery.limit(limit);
     dataQuery.skip(skip);
     const dataObjects = await dataQuery.find();
