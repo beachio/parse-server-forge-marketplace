@@ -1880,6 +1880,7 @@ const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
     developerAppData.set('Installs_Count', installsCount + 1);
     await developerAppData.save();
 
+    const developerId = developerApp.get('Developer') && developerApp.get('Developer')[0] ? developerApp.get('Developer')[0].id : null;
     // - Record New ActivityLog
     const ActivityLogModel = Parse.Object.extend(ACTIVITY_LOG_MODEL_NAME);
     const newActivityLogObject = new ActivityLogModel();
@@ -1887,7 +1888,9 @@ const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
       Title: `Installed ${developerApp.get('Name')} at ${new Date().toUTCString()}`,
       ActivityKind: 'InstallPlugin',
       Country: country,
-      City: city
+      City: city,
+      developerAppId: developerApp.id,
+      developerId
     }, { useMasterKey: true });
 
     return installsCount + 1;
@@ -1921,7 +1924,15 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     }
     const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+
+    // Get related developerApp
+    const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    appQuery.equalTo('t__status', 'Published');
+    appQuery.equalTo('appSlug', appSlug);
+    const appObject = await appQuery.first();
+
+    const developerId = (appObject && appObject.get('Developer') && appObject.get('Developer')[0]) ? appObject.get('Developer')[0].id : null;
+
     // - Check if existing record found
     const query = new Parse.Query(REVIEW_MODEL_NAME);
     query.equalTo('t__status', 'Published');
@@ -1938,13 +1949,15 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     // - Create a new rating object
     const ReviewModel = Parse.Object.extend(REVIEW_MODEL_NAME);
     const newReviewObject = new ReviewModel();
-    newReviewObject.set('title', appSlug + ' ' + author);
-    newReviewObject.set('t__status', 'Draft');
-    newReviewObject.set('appSlug', appSlug);
-    newReviewObject.set('author', author);
-    newReviewObject.set('comment', comment);
-    newReviewObject.set('rating', rating);
-    await newReviewObject.save();
+    await newReviewObject.save({
+      title: appSlug + ' ' + author,
+      comment,
+      rating,
+      author,
+      appSlug,
+      t__status: 'Draft',
+      developerId
+    }, { useMasterKey: true });
 
     // - Calculate app Rating
     const relatedQuery = new Parse.Query(REVIEW_MODEL_NAME);
@@ -1959,11 +1972,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     }
 
     // - Update app Data Object rating
-    const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    appQuery.equalTo('t__status', 'Published');
-    appQuery.equalTo('appSlug', appSlug);
-    const appObject = await appQuery.first();
-    const appDataObject = (appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
+    const appDataObject = (appObject && appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
     if (appDataObject) {
       appDataObject.set('Rating', appRating);
       await appDataObject.save();
@@ -2871,9 +2880,9 @@ const getPluginInstalls = async(params) => {
 
     const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
     dataQuery.equalTo('t__status', 'Published');
-    dataQuery.descending('Installs_Count');
     if (status) dataQuery.equalTo('Status', status);
     if (hideZeroInstalls) dataQuery.greaterThan('Installs_Count', 0);
+    dataQuery.descending('Installs_Count');
     dataQuery.limit(limit);
     dataQuery.skip(skip);
     const dataObjects = await dataQuery.find();
