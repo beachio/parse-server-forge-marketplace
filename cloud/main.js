@@ -1880,7 +1880,6 @@ const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
     developerAppData.set('Installs_Count', installsCount + 1);
     await developerAppData.save();
 
-    const developerId = developerApp.get('Developer') && developerApp.get('Developer')[0] ? developerApp.get('Developer')[0].id : null;
     // - Record New ActivityLog
     const ActivityLogModel = Parse.Object.extend(ACTIVITY_LOG_MODEL_NAME);
     const newActivityLogObject = new ActivityLogModel();
@@ -1889,8 +1888,8 @@ const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
       ActivityKind: 'InstallPlugin',
       Country: country,
       City: city,
-      developerAppId: developerApp.id,
-      developerId
+      developerApp: [developerApp],
+      developer: developerApp.get('Developer')
     }, { useMasterKey: true });
 
     return installsCount + 1;
@@ -2454,6 +2453,85 @@ const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
     throw error;
   }
 }
+
+// Used in forge-client, publisher dashboard / report page
+Parse.Cloud.define("getTopDevelopers", async (request) => {
+  const { parseServerSiteId, limit = 10, sortBy = 'installsCount' } = request.params;
+  try {
+    const apps = await getTopDevelopers( parseServerSiteId, sortBy, limit );
+
+    return { status: 'success', apps };
+  } catch (error) {
+    console.error('inside getTopPluginsList', error);
+    return { status: 'error', error };
+  }
+});
+
+
+const getTopDevelopers = async(parseServerSiteId, sortBy, limit) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    // const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
+    const ACTIVITYLOG_MODEL_NAME = `ct____${siteNameId}____ActivityLog`;
+
+    if (sortBy === 'installsCount') {
+      const activityLogQuery = new Parse.Query(ACTIVITYLOG_MODEL_NAME);
+      activityLogQuery.include('developer');
+      activityLogQuery.equalTo('ActivityKind', 'InstallPlugin')
+      activityLogQuery.groupBy('developer');
+      activityLogQuery.ascending('developer');
+      activityLogQuery.limit(limit);
+      const results = await activityLogQuery.find();
+      return results;
+    }
+    // const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    // dataQuery.equalTo('t__status', 'Published');
+    // if (sortBy === 'installsCount') {
+    //   dataQuery.descending('Installs_Count');
+    // } else if (sortBy === 'rating') {
+    //   dataQuery.descending('Rating');
+    // }
+
+    // dataQuery.limit(limit);
+    // const dataObjects = await dataQuery.find();
+
+
+    // const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    // const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    // query.equalTo('t__status', 'Published');
+    // query.include('Data');
+    // query.include('Content');
+    // query.include('Content.Key_Image');
+    // query.containedIn('Data', dataObjects);
+    
+    // const appObjects = await query.find({ useMasterKey: true });
+
+    // const lst = await Promise.all(
+    //   appObjects.map(async(appObject) => {       
+    //     const developerContent = getAppContentFromAppObject(appObject);
+    //     const developerData = getAppDataFromAppObject(appObject);
+    //     return {
+    //       name: appObject.get('Name'),
+    //       id: appObject.id,
+    //       slug: appObject.get('Slug'),
+    //       url: appObject.get('URL'),
+    //       developerContent,
+    //       developerData,
+    //     };
+    //   })
+    // );
+    // return lst;
+
+  } catch(error) {
+    console.error('inside getTopPluginsList', error);
+    throw error;
+  }
+}
+
 
 // Used in forge-client, publisher dashboard to provide plugin statistics(by status)
 Parse.Cloud.define("getPluginsListData", async (request) => {
