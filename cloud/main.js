@@ -3018,3 +3018,112 @@ const getPluginInstalls = async(params) => {
     throw error;
   }
 }
+
+
+
+
+
+
+// Calculate Weekly Install Summaries
+// - Last JobLog date to confirm the start date of the query
+// - Get App <=> Developer Map
+// - ActivityLog within the period, of InstallPlugin activities
+// - Group the queries results by Developer
+// - Insert these grouped results into JobLog
+// eslint-disable-next-line no-undef
+Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
+  try {
+    // HARD-Coded for now as its internal one.
+    const siteNameId = 'steves_40mural_2eco__PowerPlays';
+
+    // - Last JobLog date to confirm the start date of the query
+    const PARSE_JOB_LOG_MODEL_NAME = `ct____${siteNameId}____JobLog`;
+    // eslint-disable-next-line no-undef
+    const parseJobLogQuery = new Parse.Query(PARSE_JOB_LOG_MODEL_NAME);
+    parseJobLogQuery.equalTo('Kind', 'InstallsCount');
+    parseJobLogQuery.descending('createdAt');
+    const lastJobObject = await parseJobLogQuery.first({ useMasterKey: true });
+    
+    let lastJobDate = null;
+    if (lastJobObject) lastJobDate = lastJobObject.get('createdAt');
+
+    // - Get App <=> Developer Map
+    const appDeveloperMap = await getApp_DeveloperMap(siteNameId);
+    console.log('Sign of Job running', appDeveloperMap);
+
+    // - ActivityLog within the period, of InstallPlugin activities
+    const ACTIVITYLOG_MODEL_NAME = `ct____${siteNameId}____ActivityLog`;
+    // eslint-disable-next-line no-undef
+    const activityLogQuery = new Parse.Query(ACTIVITYLOG_MODEL_NAME);
+    if (lastJobDate) activityLogQuery.greaterThanOrEqualTo('createdAt', lastJobDate);
+    activityLogQuery.equalTo('ActivityKind', 'InstallPlugin');
+    const activityObjects = await activityLogQuery.find({ useMasterKey: true });
+    
+    // - Group the queries results by Developer
+    const statistics = {};
+    activityObjects.forEach((object) => {
+      if (object.get('App') && object.get('App')[0]) {
+        const appId = object.get('App')[0].id;
+        const developerId = appDeveloperMap[appId];
+        if (developerId) {
+          const count = statistics[appId] ? statistics[appId].count : 0;
+          statistics[appId] = {
+            developerId,
+            app: object.get('App'),
+            count: count + 1
+          }
+        }
+      }
+    });
+
+    // eslint-disable-next-line no-undef
+    const JobLogModel = Parse.Object.extend(PARSE_JOB_LOG_MODEL_NAME);
+    // - Insert these grouped results into JobLog
+    const promises = Object.keys(statistics).map(async(appId) => {
+      const value = statistics[appId];
+      const object = new JobLogModel();
+      await object.save({
+        Kind: 'InstallsCount',
+        ...value
+      }, { useMasterKey: true });
+    });
+    await Promise.all(promises);
+
+  } catch(error) {
+    console.error('Error in calculateWeeklyInstallSummaries', error);
+    return { status: 'error', error };
+  }
+
+
+});
+
+
+// - Get App <=> Developer Map for all the apps
+const getApp_DeveloperMap = async (siteNameId) => {
+  try {
+    // - Get App <=> Developer Map
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    // eslint-disable-next-line no-undef
+    const developerAppQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    developerAppQuery.equalTo('t__status', 'Published');
+    const apps = await developerAppQuery.find({ useMasterKey: true });
+
+    if (!apps || apps.length < 1) return null;
+
+    const map = {};
+    apps.forEach((app) => {
+      if (app.get('Developer') && app.get('Developer')[0]) {
+        const developerId = app.get('Developer')[0].id;
+        const appId = app.id;
+        map[appId] = developerId;
+      }
+    });
+    return map;
+  } catch(error) {
+    console.error('Error in getApp_DeveloperMap', error);
+    throw {
+      message: 'Error in getApp_DeveloperMap',
+      error: error.toString()
+    }
+  }
+}
