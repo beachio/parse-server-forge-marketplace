@@ -3045,7 +3045,15 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
     const lastJobObject = await parseJobLogQuery.first({ useMasterKey: true });
     
     let lastJobDate = null;
-    if (lastJobObject) lastJobDate = lastJobObject.get('createdAt');
+    if (lastJobObject) {
+      lastJobDate = lastJobObject.get('createdAt');
+      const todayDateTime = new Date().getTime();
+      const hoursDiff = (todayDateTime - lastJobDate.getTime()) / 1000*60*60;
+      console.log('Time difference from last run ====', hoursDiff);
+      if (hoursDiff < 24*6 + 23) { // Run only once a week
+        return { status: 'none', message: 'Too Early!' };
+      }
+    }
 
     // - Get App <=> Developer Map
     const appDeveloperMap = await getApp_DeveloperMap(siteNameId);
