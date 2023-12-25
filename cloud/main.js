@@ -1927,7 +1927,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     // Get related developerApp
     const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     appQuery.equalTo('t__status', 'Published');
-    appQuery.equalTo('appSlug', appSlug);
+    appQuery.equalTo('Slug', appSlug);
     const appObject = await appQuery.first();
 
     const developerId = (appObject && appObject.get('Developer') && appObject.get('Developer')[0]) ? appObject.get('Developer')[0].id : null;
