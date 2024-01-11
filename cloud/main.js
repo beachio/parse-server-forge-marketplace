@@ -1903,8 +1903,8 @@ const installDeveloperApp = async(parseServerSiteId, appId, country, city) => {
 // Called in forge-publisher
 Parse.Cloud.define("createReview", async (request) => {
   try {
-    const { parseServerSiteId, appSlug, author, comment, rating } = request.params;
-    const result = await createReview(parseServerSiteId, appSlug, author, comment, rating);
+    const { parseServerSiteId, appSlug, authorEmail, authorName, comment, rating } = request.params;
+    const result = await createReview(parseServerSiteId, appSlug, authorEmail, authorName, comment, rating);
     return { status: 'success', result };
   } catch(error) {
     console.error('Error in createReview', error);
@@ -1915,7 +1915,7 @@ Parse.Cloud.define("createReview", async (request) => {
 // - Check if a review record by author exist for the app
 // - Only create if not exists
 // - And update App Data Object rating
-const createReview = async(parseServerSiteId, appSlug, author, comment, rating) => {
+const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, comment, rating) => {
   try {
     const siteNameId = await getSiteNameId(parseServerSiteId);
     if (siteNameId === null) {
@@ -1936,7 +1936,7 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
     const query = new Parse.Query(REVIEW_MODEL_NAME);
     query.equalTo('t__status', 'Published');
     query.equalTo('appSlug', appSlug);
-    query.equalTo('author', author);
+    query.equalTo('authorEmail', authorEmail);
 
     const existingObject = await query.first();
     if (existingObject) {
@@ -1952,7 +1952,8 @@ const createReview = async(parseServerSiteId, appSlug, author, comment, rating) 
       title: appSlug + ' ' + author,
       comment,
       rating,
-      author,
+      authorEmail,
+      authorName,
       appSlug,
       t__status: 'Draft',
       developerId
