@@ -2668,6 +2668,8 @@ const getTopDevelopers_ByRatings_WithinPeriod = async (siteNameId, filter) => {
     if (endDate) reviewQuery.lessThanOrEqualTo('createdAt', new Date(endDate));
     const results = await reviewQuery.find();
 
+    console.log('review results', results);
+    
     const ratingsByDeveloper = results.reduce((accumulate, currentObject) => {
       const developerId = currentObject.get('developerId');
       let sum = currentObject.get('rating') || 0, count = 1;
@@ -2683,15 +2685,18 @@ const getTopDevelopers_ByRatings_WithinPeriod = async (siteNameId, filter) => {
         }
       };
     }, {});
-
+    
     const topDeveloperIds = Object.keys(ratingsByDeveloper)
-      .sort((a, b) => ratingsByDeveloper[a].sum / ratingsByDeveloper[a].count > ratingsByDeveloper[b].sum / ratingsByDeveloper[b].count ? 1 : -1)
-      .slice(0, limit);
-
+    .sort((a, b) => ratingsByDeveloper[a].sum / ratingsByDeveloper[a].count > ratingsByDeveloper[b].sum / ratingsByDeveloper[b].count ? 1 : -1)
+    .slice(0, limit);
+    
     // eslint-disable-next-line no-undef
     const topDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     topDeveloperQuery.containedIn('objectId', topDeveloperIds);
     const topDevelopers = await topDeveloperQuery.find();
+    
+    console.log('ratings by developer', ratingsByDeveloper);
+    console.log('top developer ids', topDeveloperIds);
 
     return topDevelopers.map(developerObject => {
       return {
