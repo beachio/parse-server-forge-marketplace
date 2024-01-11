@@ -1374,7 +1374,6 @@ const getCategoryAppsList = async(parseServerSiteId, categorySlug) => {
     categoryQuery.equalTo('Slug', categorySlug);
     const categoryObject = await categoryQuery.first({ useMasterKey: true });
 
-    console.log("category object============", categoryObject);
     if (categoryObject) {
       const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
       query.equalTo('t__status', 'Published');
@@ -2047,7 +2046,7 @@ const buildApp = async (params) => {
 const findOrCreateAppContent = async(siteNameId, appContentObject, appContent) => {
   const DEVELOPER_APP_CONTENT_MODEL_NAME = `ct____${siteNameId}____Developer_App_Content`;
   const iconObject = await handleIcon(appContent.Icon);
-  console.log('==== find or create app content', iconObject);
+
   const [screenshotsObjects, keyImageObject] = await handleScreenshots(appContent.Screenshots, appContent.keyImageIndex);
   const newAppContent = { ...appContent, Screenshots: screenshotsObjects, Key_Image: keyImageObject, Icon: iconObject };
   if (appContent.Categories) {
@@ -2530,8 +2529,6 @@ const getTopDevelopers = async(parseServerSiteId, filter) => {
     topDeveloperQuery.containedIn('objectId', topDeveloperIds);
     const topDevelopers = await topDeveloperQuery.find();
 
-    console.log('top developer ids', groupedValueByDeveloper)
-
     const results = topDevelopers
       .map(developerObject => {
         let installsCount = null, rating = null;
@@ -2668,8 +2665,6 @@ const getTopDevelopers_ByRatings_WithinPeriod = async (siteNameId, filter) => {
     if (endDate) reviewQuery.lessThanOrEqualTo('createdAt', new Date(endDate));
     const results = await reviewQuery.find();
 
-    console.log('review results', results);
-    
     const ratingsByDeveloper = results.reduce((accumulate, currentObject) => {
       const developerId = currentObject.get('developerId');
       let sum = currentObject.get('rating') || 0, count = 1;
@@ -2694,9 +2689,6 @@ const getTopDevelopers_ByRatings_WithinPeriod = async (siteNameId, filter) => {
     const topDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
     topDeveloperQuery.containedIn('objectId', topDeveloperIds);
     const topDevelopers = await topDeveloperQuery.find();
-    
-    console.log('ratings by developer', ratingsByDeveloper);
-    console.log('top developer ids', topDeveloperIds);
 
     return topDevelopers.map(developerObject => {
       return {
@@ -3206,7 +3198,6 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
       lastJobDate = lastJobObject.get('createdAt');
       const todayDateTime = new Date().getTime();
       const hoursDiff = (todayDateTime - lastJobDate.getTime()) / 1000*60*60;
-      console.log('Time difference from last run ====', hoursDiff);
       if (hoursDiff < 24*6 + 23) { // Run only once a week
         return { status: 'none', message: 'Too Early!' };
       }
@@ -3239,8 +3230,6 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
         }
       }
     });
-
-    console.log('statistics', statistics, ACTIVITYLOG_MODEL_NAME, activityObjects);
 
     // eslint-disable-next-line no-undef
     const JobLogModel = Parse.Object.extend(PARSE_JOB_LOG_MODEL_NAME);
