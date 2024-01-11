@@ -3232,7 +3232,7 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
       }
     });
 
-    console.log('statistics', statistics);
+    console.log('statistics', statistics, ACTIVITYLOG_MODEL_NAME, activityObjects, lastJobDate);
 
     // eslint-disable-next-line no-undef
     const JobLogModel = Parse.Object.extend(PARSE_JOB_LOG_MODEL_NAME);
