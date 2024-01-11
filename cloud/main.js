@@ -2456,11 +2456,11 @@ const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
 
 // Used in forge-client, publisher dashboard / report page
 Parse.Cloud.define("getTopDevelopers", async (request) => {
-  const { parseServerSiteId, filter, limit = 10, sortBy = 'installsCount' } = request.params;
+  const { parseServerSiteId, filter } = request.params;
   try {
-    const apps = await getTopDevelopers(parseServerSiteId, filter);
+    const developers = await getTopDevelopers(parseServerSiteId, filter);
 
-    return { status: 'success', apps };
+    return { status: 'success', developers };
   } catch (error) {
     console.error('inside getTopPluginsList', error);
     return { status: 'error', error };
