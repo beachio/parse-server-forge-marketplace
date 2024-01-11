@@ -3109,10 +3109,10 @@ const removeDeveloper = async(parseServerSiteId, developerId) => {
     throw error;
   }
 }
+
 // Called in forge-client / publisher panel
 // eslint-disable-next-line no-undef
 Parse.Cloud.define("getPluginInstalls", async (request) => {
-  // return { status: 'success' };
   try {  
     const pluginInstalls = await getPluginInstalls(request.params);
     return { status: 'success', pluginInstalls };
@@ -3123,7 +3123,7 @@ Parse.Cloud.define("getPluginInstalls", async (request) => {
 });
 
 const getPluginInstalls = async(params) => {
-  const { parseServerSiteId, limit = 10, skip = 0, status, hideZeroInstalls } = params;
+  const { parseServerSiteId, filter: { limit = 10, skip = 0, hideZeroInstalls, showOnlyReadyForSale } } = params;
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -3134,22 +3134,23 @@ const getPluginInstalls = async(params) => {
     const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
     const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
 
-    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    dataQuery.equalTo('t__status', 'Published');
-    if (status) dataQuery.equalTo('Status', status);
-    if (hideZeroInstalls) dataQuery.greaterThan('Installs_Count', 0);
-    dataQuery.descending('Installs_Count');
-    dataQuery.limit(limit);
-    dataQuery.skip(skip);
-    const dataObjects = await dataQuery.find();
-
+    // eslint-disable-next-line no-undef
     const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
     query.equalTo('t__status', 'Published');
+    // eslint-disable-next-line no-undef
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('t__status', 'Published');
+    if (showOnlyReadyForSale) dataQuery.equalTo('Status', 'Ready for Sale');
+    if (hideZeroInstalls) dataQuery.greaterThan('Installs_Count', 0);
+    dataQuery.descending('Installs_Count');
+    query.matchesQuery('Data', dataQuery);
     query.include('Data');
-    query.containedIn('Data', dataObjects);
-    
+
+    query.limit(limit);
+    query.skip(skip);
+
     const appObjects = await query.find({ useMasterKey: true });
-    const lst = appObjects.map((appObject) => {
+    const appsList = appObjects.map((appObject) => {
       const developerData = getAppDataFromAppObject(appObject);
       return {
         name: appObject.get('Name'),
@@ -3157,10 +3158,11 @@ const getPluginInstalls = async(params) => {
         slug: appObject.get('Slug'),
         url: appObject.get('URL'),
         kind: appObject.get('Kind'),
-        developerData,
+        installsCount: developerData ? developerData.installsCount : 0,
+        developerData
       };
     })
-    return lst;
+    return appsList;
 
   } catch(error) {
     console.error('inside getPluginInstalls function', error);
@@ -3283,5 +3285,91 @@ const getApp_DeveloperMap = async (siteNameId) => {
       message: 'Error in getApp_DeveloperMap',
       error: error.toString()
     }
+  }
+}
+
+
+// Used in forge-client, publisher dashboard / report page
+// eslint-disable-next-line no-undef
+Parse.Cloud.define("getPluginInstallsWithinPeriod", async (request) => {
+  const { parseServerSiteId, filter } = request.params;
+  try {
+    const pluginInstalls = await getPluginInstallsWithinPeriod( parseServerSiteId, filter );
+
+    return { status: 'success', pluginInstalls };
+  } catch (error) {
+    console.error('inside getPluginInstallsWithinPeriod', error);
+    return { status: 'error', error };
+  }
+});
+
+
+// SortBy InstallsCount case
+// - Query JobLog for the selectd period
+// - Get Installs count sum per developer
+// - Get Top developer Ids
+// - Get Top developer details from ids
+const getPluginInstallsWithinPeriod = async(parseServerSiteId, filter) => {
+  const { limit = 10, startDate = null , endDate = null} = filter;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+    const JOBLOG_MODEL_NAME = `ct____${siteNameId}____JobLog`;
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    
+  
+    // eslint-disable-next-line no-undef
+    const jobLogQuery = new Parse.Query(JOBLOG_MODEL_NAME);
+    if (startDate) jobLogQuery.greaterThanOrEqualTo('createdAt', new Date(startDate));
+    if (endDate) jobLogQuery.lessThanOrEqualTo('createdAt', new Date(endDate));
+    jobLogQuery.equalTo('Kind', 'InstallsCount');
+    const results = await jobLogQuery.find();
+
+    const installsCountByAppId = results.reduce((accumulate, currentObject) => {
+      if (currentObject.get('app') && currentObject.get('app')[0] && currentObject.get('app')[0].id) {
+        const appId = currentObject.get('app')[0].id;
+        const currentSum = accumulate[appId] || 0;
+        return {
+          ...accumulate,
+          [appId]: currentSum + currentObject.get('count')
+        };
+      }
+      return accumulate;
+    }, {});
+
+
+    const topAppIds = Object.keys(installsCountByAppId)
+      .sort((a, b) => installsCountByAppId[a] - installsCountByAppId[b] > 0 ? 1 : -1)
+      .slice(0, limit);
+
+    // eslint-disable-next-line no-undef
+    const topPluginQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    topPluginQuery.include('Developer');
+    topPluginQuery.include('Data');
+    topPluginQuery.containedIn('objectId', topAppIds);
+    const topPlugins = await topPluginQuery.find();
+
+    return topPlugins.map((appObject) => {
+      const developerData = getAppDataFromAppObject(appObject);
+      const developer = getDeveloperFromAppObject(appObject);
+      return {
+        id: appObject.id,
+        name: appObject.get('Name'),
+        slug: appObject.get('Slug'),
+        url: appObject.get('URL'),
+        siteId: appObject.get('SiteId'),
+        kind: appObject.get('Kind'),
+        installsCount: installsCountByAppId[appObject.id],
+        developer,
+        developerData
+      }
+    });
+
+  } catch(error) {
+    console.error('inside getPluginInstallsWithinPeriod', error);
+    throw error;
   }
 }
