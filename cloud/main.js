@@ -2468,6 +2468,12 @@ Parse.Cloud.define("getTopDevelopers", async (request) => {
 });
 
 
+
+// SortBy InstallsCount case
+// - Query JobLog for the selectd period
+// - Get Installs count sum per developer
+// - Get Top developer Ids
+// - Get Top developer details from ids
 const getTopDevelopers = async(parseServerSiteId, filter) => {
   const { limit = 10, sortBy = 'installsCount' } = filter;
   try {
@@ -2476,92 +2482,234 @@ const getTopDevelopers = async(parseServerSiteId, filter) => {
     if (siteNameId === null) {
       throw { message: 'Invalid siteId' };
     }
-    // const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
-    const ACTIVITYLOG_MODEL_NAME = `ct____${siteNameId}____ActivityLog`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+    const DEVELOPER_APP_DATA_MODEL_NAME = `ct____${siteNameId}____Developer_App_Data`;
 
-    if (sortBy === 'installsCount') {
-      const activityLogQuery = new Parse.Query(ACTIVITYLOG_MODEL_NAME);
-      // activityLogQuery.include('developer');
-      // activityLogQuery.equalTo('ActivityKind', 'InstallPlugin')
-      // activityLogQuery.groupBy('developer');
-      // activityLogQuery.ascending('developer');
-      // activityLogQuery.limit(limit);
-      // activityLogQuery.equalTo('ActivityKind', 'InstallPlugin');
+    // eslint-disable-next-line no-undef
+    const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.include('Data');
+    // eslint-disable-next-line no-undef
+    const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
+    dataQuery.equalTo('t__status', 'Published');
+    dataQuery.greaterThan('Installs_Count', 0);
+    if (sortBy === 'rating') dataQuery.greaterThan('Rating', 0);
+    query.matchesQuery('Data', dataQuery);
 
-      // Create a match stage to filter by ActivityKind
-      const matchStage = {
-        $match: {
-          ActivityKind: 'InstallPlugin',
-        },
-      };
+    query.limit(limit);
 
-      // Create a group stage to group by developer and count
-      const groupStage = {
-        $group: {
-          _id: '$developer', // Group by developer field
-          count: { $sum: 1 }, // Count the number of documents in each group
-        },
-      };
-
-      // Create a sort stage to sort by count in ascending order
-      const sortStage = {
-        $sort: {
-          count: 1,
-        },
-      };
-
-      // Add the stages to the aggregate pipeline
-      activityLogQuery.aggregate([matchStage, groupStage, sortStage]);
-
-      // Execute the query
-      const results = await activityLogQuery.find({ useMasterKey: true });
-      // const results = await activityLogQuery.find();
-      return results;
-    }
-    // const dataQuery = new Parse.Query(DEVELOPER_APP_DATA_MODEL_NAME);
-    // dataQuery.equalTo('t__status', 'Published');
-    // if (sortBy === 'installsCount') {
-    //   dataQuery.descending('Installs_Count');
-    // } else if (sortBy === 'rating') {
-    //   dataQuery.descending('Rating');
-    // }
-
-    // dataQuery.limit(limit);
-    // const dataObjects = await dataQuery.find();
+    const appObjects = await query.find({ useMasterKey: true });
+    const groupedValueByDeveloper = appObjects.reduce((accumulate, currentObject) => {
+      if (currentObject.get('Developer') && currentObject.get('Developer')[0] && currentObject.get('Developer')[0].id) {
+        const developerId = currentObject.get('Developer') && currentObject.get('Developer')[0].id;
+        const currentSum = accumulate[developerId] || 0;
+        const count = accumulate[`${developerId}_count`] || 0;
+        let currentValue = 0;
+        if (currentObject.get('Data') && currentObject.get('Data')[0]) {
+          if (sortBy === 'installsCount') currentValue = currentObject.get('Data')[0].get('Installs_Count') || 0;
+          if (sortBy === 'rating') currentValue = currentObject.get('Data')[0].get('Rating') || 0;
+        }
+        return {
+          ...accumulate,
+          [developerId]: currentSum + currentValue,
+          [`${developerId}_count`]: count + 1
+        };
+      }
+      return accumulate;
+    }, {});
 
 
-    // const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
-    // const query = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
-    // query.equalTo('t__status', 'Published');
-    // query.include('Data');
-    // query.include('Content');
-    // query.include('Content.Key_Image');
-    // query.containedIn('Data', dataObjects);
-    
-    // const appObjects = await query.find({ useMasterKey: true });
+    const topDeveloperIds = Object.keys(groupedValueByDeveloper)
+      .sort((a, b) => groupedValueByDeveloper[a] - groupedValueByDeveloper[b] > 0 ? -1 : 1)
+      .slice(0, limit);
 
-    // const lst = await Promise.all(
-    //   appObjects.map(async(appObject) => {       
-    //     const developerContent = getAppContentFromAppObject(appObject);
-    //     const developerData = getAppDataFromAppObject(appObject);
-    //     return {
-    //       name: appObject.get('Name'),
-    //       id: appObject.id,
-    //       slug: appObject.get('Slug'),
-    //       url: appObject.get('URL'),
-    //       developerContent,
-    //       developerData,
-    //     };
-    //   })
-    // );
-    // return lst;
+    // eslint-disable-next-line no-undef
+    const topDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    topDeveloperQuery.containedIn('objectId', topDeveloperIds);
+    const topDevelopers = await topDeveloperQuery.find();
+
+    console.log('top developer ids', groupedValueByDeveloper)
+
+    const results = topDevelopers
+      .map(developerObject => {
+        let installsCount = null, rating = null;
+        if (sortBy === 'installsCount') installsCount = groupedValueByDeveloper[developerObject.id];
+        if (sortBy === 'rating' && groupedValueByDeveloper[`${developerObject.id}_count`] > 0) 
+          rating = groupedValueByDeveloper[developerObject.id] / groupedValueByDeveloper[`${developerObject.id}_count`];
+        return {
+          id: developerObject.id,
+          name: developerObject.get('Name'),
+          verified: developerObject.get('Verified') || false,
+          company: developerObject.get('Company') || '',
+          website: developerObject.get('Website') || '',
+          email: developerObject.get('Email') || '',
+          country: developerObject.get('Country') || '',
+          isActive: developerObject.get('IsActive') || false,
+          installsCount,
+          rating
+        }
+      })
+      .sort((a, b) => groupedValueByDeveloper[a.id] - groupedValueByDeveloper[b.id] > 0 ? -1 : 1);
+
+    return results
 
   } catch(error) {
-    console.error('inside getTopPluginsList', error);
+    console.error('inside getTopDevelopers', error);
     throw error;
   }
 }
 
+
+// Used in forge-client, publisher dashboard / report page
+// eslint-disable-next-line no-undef
+Parse.Cloud.define("getTopDevelopersWithinPeriod", async (request) => {
+  const { parseServerSiteId, filter } = request.params;
+  try {
+    const developers = await getTopDevelopersWithinPeriod( parseServerSiteId, filter );
+
+    return { status: 'success', developers };
+  } catch (error) {
+    console.error('inside getTopDevelopersWithinPeriod', error);
+    return { status: 'error', error };
+  }
+});
+
+
+// SortBy InstallsCount case
+// - Query JobLog for the selectd period
+// - Get Installs count sum per developer
+// - Get Top developer Ids
+// - Get Top developer details from ids
+const getTopDevelopersWithinPeriod = async(parseServerSiteId, filter) => {
+  let topDevelopers;
+  const { sortBy = 'installsCount' } = filter;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+  
+    if (sortBy === 'installsCount') {
+      topDevelopers = await getTopDevelopers_ByInstallsCount_WithinPeriod(siteNameId, filter);
+    }
+    if (sortBy === 'rating') {
+      topDevelopers = await getTopDevelopers_ByRatings_WithinPeriod(siteNameId, filter);
+    }
+    return topDevelopers;
+  } catch(error) {
+    console.error('inside getTopDevelopersWithinPeriod', error);
+    throw error;
+  }
+}
+
+const getTopDevelopers_ByInstallsCount_WithinPeriod = async (siteNameId, filter) => {
+  const { limit = 10, startDate = null , endDate = null } = filter;
+  try {  
+    const JOBLOG_MODEL_NAME = `ct____${siteNameId}____JobLog`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    // eslint-disable-next-line no-undef
+    const jobLogQuery = new Parse.Query(JOBLOG_MODEL_NAME);
+    if (startDate) jobLogQuery.greaterThanOrEqualTo('createdAt', new Date(startDate));
+    if (endDate) jobLogQuery.lessThanOrEqualTo('createdAt', new Date(endDate));
+    jobLogQuery.equalTo('Kind', 'InstallsCount');
+    const results = await jobLogQuery.find();
+
+    const installsCountByDeveloper = results.reduce((accumulate, currentObject) => {
+      const developerId = currentObject.get('developerId');
+      const currentSum = accumulate[developerId] || 0;
+      return {
+        ...accumulate,
+        [developerId]: currentSum + currentObject.get('count')
+      };
+    }, {});
+
+
+    const topDeveloperIds = Object.keys(installsCountByDeveloper)
+      .sort((a, b) => installsCountByDeveloper[a] - installsCountByDeveloper[b] > 0 ? 1 : -1)
+      .slice(0, limit);
+
+    // eslint-disable-next-line no-undef
+    const topDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    topDeveloperQuery.containedIn('objectId', topDeveloperIds);
+    const topDevelopers = await topDeveloperQuery.find();
+
+    return topDevelopers.map(developerObject => {
+      return {
+        id: developerObject.id,
+        name: developerObject.get('Name'),
+        verified: developerObject.get('Verified') || false,
+        company: developerObject.get('Company') || '',
+        website: developerObject.get('Website') || '',
+        email: developerObject.get('Email') || '',
+        country: developerObject.get('Country') || '',
+        isActive: developerObject.get('IsActive') || false,
+        installsCount: installsCountByDeveloper[developerObject.id]
+      }
+    });
+  } catch(error) {
+    console.error('inside getTopDevelopers_ByInstallsCount_WithinPeriod', error);
+    throw error;
+  }
+}
+
+
+const getTopDevelopers_ByRatings_WithinPeriod = async (siteNameId, filter) => {
+  const { limit = 10, startDate = null , endDate = null } = filter;
+  try { 
+    const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+    const DEVELOPER_MODEL_NAME = `ct____${siteNameId}____Developer`;
+    // eslint-disable-next-line no-undef
+    const reviewQuery = new Parse.Query(REVIEW_MODEL_NAME);
+    reviewQuery.equalTo('t__status', 'Published')
+    if (startDate) reviewQuery.greaterThanOrEqualTo('createdAt', new Date(startDate));
+    if (endDate) reviewQuery.lessThanOrEqualTo('createdAt', new Date(endDate));
+    const results = await reviewQuery.find();
+
+    const ratingsByDeveloper = results.reduce((accumulate, currentObject) => {
+      const developerId = currentObject.get('developerId');
+      let sum = currentObject.get('rating') || 0, count = 1;
+      if (accumulate[developerId]) {
+        sum += accumulate[developerId].sum;
+        count += accumulate[developerId].count;
+      }
+      return {
+        ...accumulate,
+        [developerId]: {
+          sum,
+          count
+        }
+      };
+    }, {});
+
+    const topDeveloperIds = Object.keys(ratingsByDeveloper)
+      .sort((a, b) => ratingsByDeveloper[a].sum / ratingsByDeveloper[a].count > ratingsByDeveloper[b].sum / ratingsByDeveloper[b].count ? 1 : -1)
+      .slice(0, limit);
+
+    // eslint-disable-next-line no-undef
+    const topDeveloperQuery = new Parse.Query(DEVELOPER_MODEL_NAME);
+    topDeveloperQuery.containedIn('objectId', topDeveloperIds);
+    const topDevelopers = await topDeveloperQuery.find();
+
+    return topDevelopers.map(developerObject => {
+      return {
+        id: developerObject.id,
+        name: developerObject.get('Name'),
+        verified: developerObject.get('Verified') || false,
+        company: developerObject.get('Company') || '',
+        website: developerObject.get('Website') || '',
+        email: developerObject.get('Email') || '',
+        country: developerObject.get('Country') || '',
+        isActive: developerObject.get('IsActive') || false,
+        rating: ratingsByDeveloper[developerObject.id].sum / ratingsByDeveloper[developerObject.id].count
+      }
+    });
+  } catch(error) {
+    console.error('inside getTopDevelopers_ByRatings_WithinPeriod', error);
+    throw error;
+  }
+}
 
 // Used in forge-client, publisher dashboard to provide plugin statistics(by status)
 Parse.Cloud.define("getPluginsListData", async (request) => {
