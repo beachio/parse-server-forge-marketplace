@@ -3220,21 +3220,21 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
     // - Group the queries results by Developer
     const statistics = {};
     activityObjects.forEach((object) => {
-      if (object.get('App') && object.get('App')[0]) {
-        const appId = object.get('App')[0].id;
+      if (object.get('developerApp') && object.get('developerApp')[0]) {
+        const appId = object.get('developerApp')[0].id;
         const developerId = appDeveloperMap[appId];
         if (developerId) {
           const count = statistics[appId] ? statistics[appId].count : 0;
           statistics[appId] = {
             developerId,
-            app: object.get('App'),
+            app: object.get('developerApp'),
             count: count + 1
           }
         }
       }
     });
 
-    console.log('statistics', statistics, ACTIVITYLOG_MODEL_NAME, activityObjects, lastJobDate);
+    console.log('statistics', statistics, ACTIVITYLOG_MODEL_NAME, activityObjects);
 
     // eslint-disable-next-line no-undef
     const JobLogModel = Parse.Object.extend(PARSE_JOB_LOG_MODEL_NAME);
