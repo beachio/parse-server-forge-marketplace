@@ -2456,9 +2456,9 @@ const getTopPluginsList = async(parseServerSiteId, sortBy, limit) => {
 
 // Used in forge-client, publisher dashboard / report page
 Parse.Cloud.define("getTopDevelopers", async (request) => {
-  const { parseServerSiteId, limit = 10, sortBy = 'installsCount' } = request.params;
+  const { parseServerSiteId, filter, limit = 10, sortBy = 'installsCount' } = request.params;
   try {
-    const apps = await getTopDevelopers( parseServerSiteId, sortBy, limit );
+    const apps = await getTopDevelopers(parseServerSiteId, filter);
 
     return { status: 'success', apps };
   } catch (error) {
@@ -2468,7 +2468,8 @@ Parse.Cloud.define("getTopDevelopers", async (request) => {
 });
 
 
-const getTopDevelopers = async(parseServerSiteId, sortBy, limit) => {
+const getTopDevelopers = async(parseServerSiteId, filter) => {
+  const { limit = 10, sortBy = 'installsCount' } = filter;
   try {
     // get site name Id and generate MODEL names based on that
     const siteNameId = await getSiteNameId(parseServerSiteId);
@@ -3057,7 +3058,6 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
 
     // - Get App <=> Developer Map
     const appDeveloperMap = await getApp_DeveloperMap(siteNameId);
-    console.log('Sign of Job running', appDeveloperMap);
 
     // - ActivityLog within the period, of InstallPlugin activities
     const ACTIVITYLOG_MODEL_NAME = `ct____${siteNameId}____ActivityLog`;
@@ -3083,6 +3083,8 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
         }
       }
     });
+
+    console.log('statistics', statistics);
 
     // eslint-disable-next-line no-undef
     const JobLogModel = Parse.Object.extend(PARSE_JOB_LOG_MODEL_NAME);
