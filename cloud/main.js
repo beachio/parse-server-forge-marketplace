@@ -3221,7 +3221,7 @@ Parse.Cloud.job('calculateWeeklyInstallSummaries', async (request) => {
     const statistics = {};
     activityObjects.forEach((object) => {
       if (object.get('developerApp') && object.get('developerApp')[0]) {
-        const appId = object.get('developerApp')[0].id;
+        const appId = object.get('developerApp')[0].objectId;
         const developerId = appDeveloperMap[appId];
         if (developerId) {
           const count = statistics[appId] ? statistics[appId].count : 0;
