@@ -1934,7 +1934,7 @@ const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, 
     // - Check if existing record found
     const query = new Parse.Query(REVIEW_MODEL_NAME);
     query.equalTo('t__status', 'Published');
-    query.equalTo('appSlug', appSlug);
+    query.equalTo('App', appObject);
     query.equalTo('authorEmail', authorEmail);
 
     const existingObject = await query.first();
@@ -1953,30 +1953,11 @@ const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, 
       rating,
       authorEmail,
       authorName,
-      appSlug,
-      t__status: 'Draft',
+      App: [appObject],
+      Status: 'Waiting Review',
       developerId
     }, { useMasterKey: true });
 
-    // - Calculate app Rating
-    const relatedQuery = new Parse.Query(REVIEW_MODEL_NAME);
-    relatedQuery.equalTo('t__status', 'Published');
-    relatedQuery.equalTo('appSlug', appSlug)
-    const relatedReviews = await query.find();
-    
-    let appRating = rating;
-    if (relatedReviews && relatedReviews.length > 0) {
-      const ratingSum = relatedReviews.reduce((acc, curReview) => (acc + curReview.get('rating') || 0), 0);
-      appRating = (ratingSum + rating) / (relatedReviews + 1);
-    }
-
-    // - Update app Data Object rating
-    const appDataObject = (appObject && appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
-    if (appDataObject) {
-      appDataObject.set('Rating', appRating);
-      await appDataObject.save();
-    }
-    
     return newReviewObject;
   } catch(error) {
     console.error('inside createReview function', error);
@@ -3365,6 +3346,168 @@ const getPluginInstallsWithinPeriod = async(parseServerSiteId, filter) => {
 
   } catch(error) {
     console.error('inside getPluginInstallsWithinPeriod', error);
+    throw error;
+  }
+}
+
+
+
+
+
+// eslint-disable-next-line no-undef
+Parse.Cloud.define("getReviewsList", async (request) => {
+  const { parseServerSiteId, filter } = request.params;
+  try {
+    const reviews = await getReviewsList(parseServerSiteId, filter);
+    
+    return { status: 'success', reviews };
+  } catch (error) {
+    console.error('Error in getReviewList', error);
+    return { status: 'error', error };
+  }
+});
+
+// Example Request
+// filter: {appId: "xxxxxxxxxx", status: "Waiting Review"/"Declined"/"Approved"}
+const getReviewsList = async(parseServerSiteId, filter) => {
+  const { 
+    appId, 
+    status
+  } = filter;
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+
+    // eslint-disable-next-line no-undef
+    const query = new Parse.Query(REVIEW_MODEL_NAME);
+    query.include('App');
+    query.equalTo('t__status', 'Published');
+
+    if (appId) {
+      const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+      // eslint-disable-next-line no-undef
+      const DeveloperAppModel = Parse.Object.extend(DEVELOPER_APP_MODEL_NAME);
+      const appObject = new DeveloperAppModel();
+      appObject.id = appId;
+      query.equalTo('App', appObject);
+    }
+
+    if (status) query.equalTo('Status', status);
+    
+    const reviewObjects = await query.find({ useMasterKey: true });
+    if (reviewObjects && reviewObjects.length > 0) {
+      const lst = reviewObjects.map((reviewObject) => {
+        let appObject = null;
+        if (reviewObject.get('App') &&  reviewObject.get('App')[0]) {
+          appObject = {
+            slug: reviewObject.get('App')[0].get('Slug'),
+            name: reviewObject.get('App')[0].get('Name')
+          }
+        }
+        return {
+          id: reviewObject.id,
+          authorName: reviewObject.get('author'),
+          authorEmail: reviewObject.get('authorEmail'),
+          comment: reviewObject.get('comment'),
+          rating: reviewObject.get('rating'),
+          status: reviewObject.get('Status'),
+          updatedAt: reviewObject.get('updatedAt'),
+          appObject
+        };
+      });
+      return lst;
+    }
+  } catch(error) {
+    console.error('Error in getReviewList function', error);
+    throw error;
+  }
+}
+
+
+// Called from publisher-dashboard
+// eslint-disable-next-line no-undef
+Parse.Cloud.define("updateReview", async (request) => {
+  const { parseServerSiteId, id, data } = request.params;
+  try {
+    const reviewObject = await updateReview(parseServerSiteId, id, data);
+
+   
+    return { status: 'success', reviewObject };
+  } catch (error) {
+    console.error('Error in updateReview', error);
+    return { status: 'error', error };
+  }
+});
+
+// Update review, to be mainly used for status update
+// data: {status: 'Declined'}
+const updateReview = async(parseServerSiteId, id, data) => {
+  try {
+    // get site name Id and generate MODEL names based on that
+    const siteNameId = await getSiteNameId(parseServerSiteId);
+    if (siteNameId === null) {
+      throw { message: 'Invalid siteId' };
+    }
+
+    const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+
+    // eslint-disable-next-line no-undef
+    const query = new Parse.Query(REVIEW_MODEL_NAME);
+    query.equalTo('objectId', id);
+    const reviewObject = await query.first({ useMasterKey: true });
+    if (reviewObject) {
+      await safeUpdateForChisel(REVIEW_MODEL_NAME, reviewObject, data);
+      if (reviewObject.get('App') && reviewObject.get('App')[0] && reviewObject.get('App')[0].id) {
+        const appId = reviewObject.get('App')[0].id;
+        await calcAndUpdateRatingForApp(siteNameId, appId);
+      }
+    }
+    return reviewObject;
+  } catch(error) {
+    console.error('Error in updateReview function', error);
+    throw error;
+  }
+}
+
+
+const calcAndUpdateRatingForApp = async(siteNameId, appId) => {
+  try {
+    const REVIEW_MODEL_NAME = `ct____${siteNameId}____Review`;
+    const DEVELOPER_APP_MODEL_NAME = `ct____${siteNameId}____Developer_App`;
+
+    // eslint-disable-next-line no-undef
+    const appQuery = new Parse.Query(DEVELOPER_APP_MODEL_NAME);
+    appQuery.equalTo('objectId', appId);
+    appQuery.include(['Data']);
+    const appObject = await appQuery.first({ useMasterKey: true });
+
+    // - Calculate app Rating
+    // eslint-disable-next-line no-undef
+    const query = new Parse.Query(REVIEW_MODEL_NAME);
+    query.equalTo('t__status', 'Published');
+    query.equalTo('App', appObject)
+    query.equalTo('Status', 'Approved')
+    const relatedReviews = await query.find({ useMasterKey: true });
+    
+    let appRating = 0;
+    if (relatedReviews && relatedReviews.length > 0) {
+      const ratingSum = relatedReviews.reduce((acc, curReview) => (acc + curReview.get('rating') || 0), 0);
+      appRating = ratingSum / relatedReviews.length;
+    }
+
+    // - Update app Data Object rating
+    const appDataObject = (appObject && appObject.get('Data') && appObject.get('Data')[0]) ? appObject.get('Data')[0] : null;
+    if (appDataObject) {
+      appDataObject.set('Rating', appRating);
+      await appDataObject.save();
+    }
+  } catch(error) {
+    console.error('Error in calcAndUpdateRatingForApp', error);
     throw error;
   }
 }
