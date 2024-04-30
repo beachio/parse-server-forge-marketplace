@@ -1759,19 +1759,19 @@ Parse.Cloud.define('linkWith', async(request) => {
       }, 
       { useMasterKey: true });
     }
-    const muralDomain = authData.domain;
-    const url = `https://${muralDomain}/api/public/v1/users/me`;
-    let data;
-    try {
-      const res = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${authData.accessToken}`
-        }
-      });
-      console.log('more response data=======', res.data)
-      data = res.data.value;
-    } catch(e) {
-    }
+    // const muralDomain = authData.domain;
+    // const url = `https://${muralDomain}/api/public/v1/users/me`;
+    // let data;
+    // try {
+    //   const res = await axios.get(url, {
+    //     headers: {
+    //       'Authorization': `Bearer ${authData.accessToken}`
+    //     }
+    //   });
+    //   console.log('more response data=======', res.data)
+    //   data = res.data.value;
+    // } catch(e) {
+    // }
     await user.linkWith('mural', { authData }, { useMasterKey: true });
     return { status: 'success', user, url, data };
   } catch (error) {
