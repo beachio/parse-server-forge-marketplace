@@ -1761,17 +1761,18 @@ Parse.Cloud.define('linkWith', async(request) => {
     }
     const muralDomain = authData.domain;
     const url = `https://${muralDomain}/api/public/v1/users/me`;
+    let data;
     try {
-      const data = await axios.get(url, {
+      const res = await axios.get(url, {
         headers: {
           'Authorization': `Bearer ${authData.accessToken}`
         }
       });
+      data = res?.value;
     } catch(e) {
-      console.log('url', url, data);
     }
     // await user.linkWith('mural', { authData }, { useMasterKey: true });
-    return { status: 'success', user };
+    return { status: 'success', user, url, data };
   } catch (error) {
     console.error('inside linkWith', error);
     return { status: 'error', error };
