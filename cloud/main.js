@@ -1768,8 +1768,8 @@ Parse.Cloud.define('linkWith', async(request) => {
           'Authorization': `Bearer ${authData.accessToken}`
         }
       });
-      console.log('more response data=======', res)
-      data = res?.value;
+      console.log('more response data=======', res.data)
+      data = res.data.value;
     } catch(e) {
     }
     // await user.linkWith('mural', { authData }, { useMasterKey: true });
