@@ -3,7 +3,7 @@ const request = require('request');
 const proxy = require('express-http-proxy');
 const axios = require('axios');
 const {config, SITE, ROLE_ADMIN, ROLE_EDITOR, promisifyW, getAllObjects} = require('./common');
-
+const MURAL_HOST = 'app.mural.co';
 const {getPayPlan} = require('./payment');
 
 
@@ -1740,6 +1740,19 @@ Parse.Cloud.define("refresh", async (request) => {
   }
 });
 
+const muralPublicMe = async (token) => {
+  try {
+    const res = await axios.get(
+      `https://${MURAL_HOST}/api/public/v1/users/me`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    return res.data;
+  } catch (error) {
+    throw new Error(prepareAxiosErrorMessage(error));
+  }
+};
+
 // Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define('linkWith', async(request) => {
   const { authData, email } = request.params;
@@ -1759,21 +1772,10 @@ Parse.Cloud.define('linkWith', async(request) => {
       }, 
       { useMasterKey: true });
     }
-    // const muralDomain = authData.domain;
-    // const url = `https://${muralDomain}/api/public/v1/users/me`;
-    // let data;
-    // try {
-    //   const res = await axios.get(url, {
-    //     headers: {
-    //       'Authorization': `Bearer ${authData.accessToken}`
-    //     }
-    //   });
-    //   console.log('more response data=======', res.data)
-    //   data = res.data.value;
-    // } catch(e) {
-    // }
-    await user.linkWith('mural', { authData }, { useMasterKey: true });
-    return { status: 'success', user, url, data };
+    const data = await muralPublicMe(authData.token);
+
+    // await user.linkWith('mural', { authData }, { useMasterKey: true });
+    return { status: 'success', user, data };
   } catch (error) {
     console.error('inside linkWith', error);
     return { status: 'error', error };
