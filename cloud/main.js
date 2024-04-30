@@ -1777,7 +1777,7 @@ Parse.Cloud.define('linkWith', async(request) => {
       }, 
       { useMasterKey: true });
     }
-    const data = await muralPublicMe(authData.token);
+    const data = await muralPublicMe(authData.accessToken);
     console.log('mural public me', data);
     await user.linkWith('mural', { authData }, { useMasterKey: true });
     return { status: 'success', user, data };
