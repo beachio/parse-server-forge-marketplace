@@ -1740,6 +1740,11 @@ Parse.Cloud.define("refresh", async (request) => {
   }
 });
 
+const prepareAxiosErrorMessage = (error, additionalMessage) =>
+  `${error.response.data.error_description || error.message} ${
+    additionalMessage ? additionalMessage : ""
+  }`;
+
 const muralPublicMe = async (token) => {
   try {
     const res = await axios.get(
@@ -1773,8 +1778,8 @@ Parse.Cloud.define('linkWith', async(request) => {
       { useMasterKey: true });
     }
     const data = await muralPublicMe(authData.token);
-
-    // await user.linkWith('mural', { authData }, { useMasterKey: true });
+    console.log('mural public me', data);
+    await user.linkWith('mural', { authData }, { useMasterKey: true });
     return { status: 'success', user, data };
   } catch (error) {
     console.error('inside linkWith', error);
