@@ -1740,24 +1740,6 @@ Parse.Cloud.define("refresh", async (request) => {
   }
 });
 
-const prepareAxiosErrorMessage = (error, additionalMessage) =>
-  `${error.response.data.error_description || error.message} ${
-    additionalMessage ? additionalMessage : ""
-  }`;
-
-const muralPublicMe = async (token) => {
-  try {
-    const res = await axios.get(
-      `https://${MURAL_HOST}/api/public/v1/users/me`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-
-    return res.data;
-  } catch (error) {
-    throw new Error(prepareAxiosErrorMessage(error));
-  }
-};
-
 // Mural Auth, used in mural auth and many other mural related plugins
 Parse.Cloud.define('linkWith', async(request) => {
   const { authData, email } = request.params;
@@ -1777,10 +1759,8 @@ Parse.Cloud.define('linkWith', async(request) => {
       }, 
       { useMasterKey: true });
     }
-    const data = await muralPublicMe(authData.accessToken);
-    console.log('mural public me', data);
     await user.linkWith('mural', { authData }, { useMasterKey: true });
-    return { status: 'success', user, data };
+    return { status: 'success', user };
   } catch (error) {
     console.error('inside linkWith', error);
     return { status: 'error', error };
