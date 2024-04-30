@@ -1772,7 +1772,7 @@ Parse.Cloud.define('linkWith', async(request) => {
       data = res.data.value;
     } catch(e) {
     }
-    // await user.linkWith('mural', { authData }, { useMasterKey: true });
+    await user.linkWith('mural', { authData }, { useMasterKey: true });
     return { status: 'success', user, url, data };
   } catch (error) {
     console.error('inside linkWith', error);
