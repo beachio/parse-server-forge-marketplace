@@ -1950,7 +1950,7 @@ const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, 
       comment,
       rating,
       authorEmail,
-      authorName,
+      author: authorName,
       App: [appObject],
       Status: 'Waiting Review',
       developerId
