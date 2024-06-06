@@ -1938,7 +1938,7 @@ const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, 
     const existingObject = await query.first();
     if (existingObject) {
       throw {
-        message: `${author} Already left a review on ${appSlug}`
+        message: `${authorName} Already left a review on ${appSlug}`
       }
     }
 
