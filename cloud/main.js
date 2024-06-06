@@ -1953,7 +1953,8 @@ const createReview = async(parseServerSiteId, appSlug, authorEmail, authorName, 
       author: authorName,
       App: [appObject],
       Status: 'Waiting Review',
-      developerId
+      developerId,
+      't__status': 'Published'
     }, { useMasterKey: true });
 
     return newReviewObject;
